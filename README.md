@@ -60,7 +60,7 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 | 고른 차시 학습률(%) | 이러닝 확인 → 학습률 |
 
 학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다.  
-비밀번호는 JSON에 넣지 않습니다.
+학번·비밀번호는 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 지금처럼 직접 입력합니다. `session.json` / `result.json` / `config.json` 에는 비밀번호를 넣지 않습니다.
 
 ---
 
@@ -69,13 +69,14 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 왼쪽 목록으로 이동합니다. TUI의 `switch` 메뉴와 같은 기능입니다.
 
 ```text
-로그인 / 세션     학번·비밀번호, session.json 쿠키 재사용
-과제 확인         전체 / 현재 수행 가능 / 미제출 전수 / 상세
-이러닝 확인       차시 목록 · 들을 차시 · 학습률(%) — 조회만
-현황 한 표        과목별 미제출 / 미완료
-파일 / 설정       config.json, result.json 저장·불러오기
+로그인           login.json 또는 직접 입력, session.json 쿠키 재사용
+과제             전체 / 지금 할 수 있는 과제 / 미제출 전수 / 상세
+이러닝           차시 목록 · 들을 차시 · 학습률(%) — 조회만
+현황             과목별 미제출 / 미완료
+설정             config.json · login.json · result.json
 ```
 
+화면은 토스뱅크에 가까운 밝은 카드 UI입니다. 로그인·조회 중에는 스피너가 돌아 창이 멈춘 것처럼 보이지 않습니다.  
 비밀번호 칸은 `*` 로 가립니다.
 
 로그인에 성공하면 이름·학번·학과를 보여 줍니다. 예: `홍길동 (20241234) · 컴퓨터공학과`  
@@ -93,7 +94,7 @@ e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sug
 | 언어 | C11 (조회 백엔드) + Python 3 / PyQt6 (화면) |
 | 편집기 | Visual Studio Code |
 | 컴파일러 | MinGW-w64 / MSVC / TinyCC 중 하나 |
-| 저장 | JSON만 (`config.json`, `session.json`, `result.json`) |
+| 저장 | JSON만 (`config.json`, `login.json`, `session.json`, `result.json`) |
 | 빌드 | `build.bat` 만. Makefile / CMake 없음 |
 
 ```bat
@@ -142,6 +143,7 @@ seowon-cli
 │  ├─ front/gui           PyQt 화면
 │  │  ├─ main.py
 │  │  ├─ window.py
+│  │  ├─ style.py
 │  │  └─ backend.py
 │  ├─ back                조회 · 파일 · 패킷
 │  │  ├─ http / crypto / parse / fs
@@ -150,6 +152,7 @@ seowon-cli
 │  ├─ c_modules           cJSON, winhttp_min
 │  └─ util.c
 ├─ db/testdata            데모·테스트용 HTML/JSON (세션 파일 아님)
+├─ login.json.example     학번·비밀번호 빈 칸 예제
 ├─ requirements.txt
 ├─ build.bat
 └─ README.md
@@ -172,11 +175,11 @@ flowchart LR
 
 ## 저장 파일
 
-`config.json` 은 실행 폴더, 세션·결과는 `dataDir`(기본 `./db`) 아래입니다.  
+`config.json` · `login.json` 은 실행 폴더, 세션·결과는 `dataDir`(기본 `./db`) 아래입니다.  
 `./db` 가 없으면 실행할 때 만듭니다.  
-저장소에는 **`db/testdata`만** 올립니다. `session.json` / `result.json` / `config.json` 은 `.gitignore` 입니다.
+저장소에는 **`db/testdata`만** 올립니다. `session.json` / `result.json` / `config.json` / `login.json` 은 `.gitignore` 입니다.
 
-예제: [`config.json.example`](config.json.example)
+예제: [`config.json.example`](config.json.example), [`login.json.example`](login.json.example)
 
 ```json
 {
@@ -190,9 +193,21 @@ flowchart LR
 | 파일 | 내용 |
 | --- | --- |
 | `config.json` | 마지막 학번, 저장 옵션, 폴더 |
+| `login.json` | 학번·비밀번호. 둘 다 있으면 로그인 입력 생략. **로컬 평문, git 제외** |
 | `db/session.json` | 학번, 이름, 학과, 쿠키. **비밀번호 없음** |
 | `db/result.json` | 최근 조회 결과. 오프라인에서 다시 그림 |
 | `db/testdata/` | 데모·단위 테스트용 고정 응답 |
+
+`login.json` 예제:
+
+```json
+{
+  "studentId": "",
+  "password": ""
+}
+```
+
+학번이나 비밀번호 중 하나라도 비어 있으면 지금처럼 직접 입력합니다.
 
 `session.json` 필드:
 
@@ -231,7 +246,7 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 | 파일 | 역할 |
 | --- | --- |
-| `cJSON.c` / `cJSON.h` | `config.json`, `session.json`, `result.json`, 로그인 JSON |
+| `cJSON.c` / `cJSON.h` | `config.json`, `login.json`, `session.json`, `result.json`, 로그인 응답 JSON |
 | `cJSON.LICENSE` | cJSON MIT 라이선스 |
 | `winhttp_min.h` | TinyCC처럼 SDK `winhttp.h` 가 없을 때 쓰는 선언. 본체는 `winhttp.dll` |
 
@@ -244,7 +259,8 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 - 수강신청 · 희망바구니
 - 다른 학생 계정 조회
 - `.dat` / `.txt` / SQLite
-- 비밀번호를 JSON에 저장
+- `session.json` · `result.json` · `config.json` 에 비밀번호 저장
+- `login.json` 을 Git·원격에 올리기 (로컬 전용)
 
 ---
 
@@ -269,19 +285,22 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 - e-campus 로그인만으로는 이름·학과가 안 나와서 `sugangh` SSO SSV(`findAppcsLogin`, `findStunoInfo`)를 씀.
 - 상태 줄에 `이름 (학번) · 학과` 를 표시.
-- `session.json` 에 `studentName`, `deptName`, `deptCd` 를 같이 저장. 비밀번호는 저장하지 않음.
+- `session.json` 에 `studentName`, `deptName`, `deptCd` 를 같이 저장. 비밀번호는 `session.json` 에 넣지 않음.
+- 로그인 계정은 `login.json`. 학번·비밀번호가 둘 다 있으면 입력을 건너뛰고, 하나라도 비면 직접 입력.
 
 ### 저장소 · 빌드
 
 - 예전 `project/` 안 파일을 저장소 루트로 옮김.
 - 외부 라이브러리 폴더 이름: `lib/vendor` → `lib/c_modules`.
 - `Makefile`, `CMakeLists.txt` 를 지움. 빌드는 `build.bat` 만.
-- `./db` 는 실행 때 없으면 만듦. Git에는 `db/testdata` 만 두고, 실제 `session.json` / `result.json` 은 올리지 않음.
+- `./db` 는 실행 때 없으면 만듦. Git에는 `db/testdata` 만 두고, 실제 `session.json` / `result.json` / `login.json` 은 올리지 않음.
 
 ### GUI
 
 - `lib/front/gui` 에 PyQt6 화면. `seowon-gui.exe` 가 `main.py` 를 띄움.
+- 토스뱅크에 가까운 밝은 카드 UI. 로그인·조회 중 스피너 오버레이.
 - 조회는 `seowon-core.exe --rpc`.
+- 로그인 칸은 `login.json` 을 미리 채움.
 
 ---
 

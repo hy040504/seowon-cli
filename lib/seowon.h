@@ -45,10 +45,12 @@
 #define SW_SUGANG_STUNO "/com/SsoCtr/findStunoInfo.do?menuId=edu&pgmId=edu"
 #define SW_PROGRESS_TYPE "WEEK"
 #define SW_LIST_SCALE "100"                              // 목록 조회 개수
+#define SW_LOGIN_FILE "login.json"                       // 학번·비밀번호 파일
 
 // 매크로 변수 (버퍼 크기)
 #define SW_STR_TINY 32
 #define SW_STR_ID 96
+#define SW_STR_PW 128
 #define SW_STR_TITLE 256
 #define SW_STR_PERIOD 128
 #define SW_STR_STATUS 80
@@ -99,6 +101,13 @@ typedef struct {
     char base_url[SW_STR_PATH];         // 서버 주소
     char config_path[SW_STR_PATH];      // 설정 파일 경로
 } SwConfig;
+
+// 로그인 계정 (login.json) — 학번·비밀번호가 둘 다 있으면 입력 생략
+typedef struct {
+    char student_id[SW_STR_ID];         // 학번
+    char password[SW_STR_PW];           // 비밀번호 (로컬 파일, gitignore)
+    char path[SW_STR_PATH];             // 파일 경로
+} SwLoginFile;
 
 // 로그인 세션 (session.json)
 typedef struct {
