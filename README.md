@@ -113,8 +113,6 @@ GUI 는 Python 3 + PyQt6 가 필요합니다.
 pip install -r requirements.txt
 ```
 
-`Makefile` / `CMakeLists.txt` 도 `seowon-tui` · `seowon-gui` 두 대상을 만듭니다.
-
 ### 실행
 
 ```bat
