@@ -43,7 +43,7 @@
 | --- | --- | --- |
 | [`main`](https://github.com/hy040504/seowon-cli/tree/main) | TUI + GUI | `seowon-tui.exe`, `seowon-gui.exe` |
 | [`tui`](https://github.com/hy040504/seowon-cli/tree/tui) | 터미널만. PyQt 없음 | `seowon-tui.exe` |
-| [`gui`](https://github.com/hy040504/seowon-cli/tree/gui) | PyQt만. 터미널 메뉴 없음 | `seowon-gui.exe` + `seowon-core.exe` |
+| [`gui`](https://github.com/hy040504/seowon-cli/tree/gui) | PyQt만. 터미널 메뉴 없음 | `seowon-gui.exe` (조회는 `seowon-tui.exe --rpc`) |
 
 ---
 
@@ -143,8 +143,10 @@ seowon-gui.exe --demo       GUI 를 데모 체크로 시작
 python lib\front\gui\main.py
 ```
 
+실행 파일은 **`seowon-tui.exe`** 와 **`seowon-gui.exe`** 만 쓴다.  
 데모는 네트워크 없이 메뉴와 표를 보여 줄 때 씁니다.  
-실제 로그인을 GUI 에서 쓰려면 먼저 `build.bat`(TUI) 가 되어 있어야 합니다.
+실제 로그인을 GUI 에서 쓰려면 먼저 `build.bat`(TUI) 가 되어 있어야 합니다.  
+GUI 는 `seowon-tui.exe --rpc` 를 **콘솔 창 없이** 백그라운드에서 부릅니다.
 
 ---
 
@@ -154,7 +156,7 @@ python lib\front\gui\main.py
 
 모듈은 `.h` / `.c` 한 쌍입니다. **`.h`는 다른 파일이 불러도 되는 API(함수·상수·자료형)**, **`.c`는 그 구현**입니다. 파일 안에서만 쓰는 함수는 `.c`에 `static` 으로 둡니다.
 
-화면은 `lib/front/tui`(C 터미널)와 `lib/front/gui`(PyQt)로 나뉩니다. 조회·로그인·JSON 은 `lib/back` 을 같이 씁니다. GUI 는 `seowon-tui.exe --rpc` 로 그 백엔드를 부릅니다.
+화면은 `lib/front/tui`(C 터미널)와 `lib/front/gui`(PyQt)로 나뉩니다. 조회·로그인·JSON 은 `lib/back` 을 같이 씁니다. GUI 는 `seowon-tui.exe --rpc` 를 콘솔 창 없이 부릅니다.
 
 ```text
 seowon-cli
@@ -170,6 +172,7 @@ seowon-cli
 │  │     ├─ main.py
 │  │     ├─ window.py
 │  │     ├─ style.py
+│  │     ├─ widgets.py
 │  │     └─ backend.py
 │  ├─ back                조회 · 파일 · 패킷
 │  │  ├─ http / crypto / parse / fs
@@ -298,7 +301,7 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 - `main` — TUI와 GUI를 모두 둠.
 - `tui` — 터미널만. `lib/front/gui`, `gui_main.c`, `requirements.txt` 없음.
-- `gui` — PyQt만. 터미널 메뉴(`prompt.c`) 없음. 조회는 `seowon-core.exe --rpc`.
+- `gui` — PyQt만. 터미널 메뉴(`prompt.c`) 없음. 조회는 `seowon-tui.exe --rpc`.
 
 ### 화면 · 입력
 
@@ -324,8 +327,11 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 ### GUI
 
 - `lib/front/gui` 에 PyQt6 화면. `seowon-gui.exe` 가 `main.py` 를 띄움.
-- 화면은 토스뱅크에 가까운 밝은 카드 UI. 로그인·조회 중에는 스피너 오버레이를 띄워 창이 멈춘 것처럼 보이지 않게 함.
-- GUI 조회는 `seowon-tui.exe --rpc`(main) 또는 `seowon-core.exe --rpc`(gui 브랜치).
+- 화면은 토스뱅크에 가까운 카드 UI. 설정에서 라이트/다크를 켠다. 다크는 어두운 바탕과 밝은 글자.
+- 로그인에 성공하면 알림창 대신 Successful! 카드로 바뀐다.
+- 데모 모드 칸은 파란 네모 안 V자 체크.
+- 로그인·조회 중에는 스피너 오버레이. `seowon-tui.exe --rpc` 는 콘솔 창 없이 백그라운드에서 돈다.
+- 실행 파일은 `seowon-tui.exe` 와 `seowon-gui.exe` 만 쓴다.
 - 로그인 칸은 `login.json` 을 미리 채움. 학번·비밀번호가 둘 다 있으면 입력 없이 로그인할 수 있음.
 
 ---
