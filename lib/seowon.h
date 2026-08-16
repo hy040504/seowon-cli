@@ -178,6 +178,7 @@ typedef struct {
     size_t n_courses;                   // 과목 개수
     int logged_in;                      // 로그인 여부
     int demo;                           // 데모 모드
+    int quiet;                          // 1 이면 TUI 문구·스피너 없음 (GUI RPC)
     char testdata_dir[SW_STR_PATH];     // testdata 폴더
     char last_error[SW_STR_MSG];        // 마지막 오류
 } SwApp;

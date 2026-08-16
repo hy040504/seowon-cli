@@ -11,15 +11,22 @@
     {
       "label": "test seowon-cli",
       "type": "shell",
-      "command": "${workspaceFolder}/seowon-cli.exe",
+      "command": "${workspaceFolder}/seowon-tui.exe",
       "args": ["--test"],
       "group": "test",
       "dependsOn": "build seowon-cli"
     },
     {
+      "label": "build seowon-gui",
+      "type": "shell",
+      "command": "${workspaceFolder}/build.bat",
+      "args": ["gui"],
+      "problemMatcher": ["$gcc"]
+    },
+    {
       "label": "demo seowon-cli",
       "type": "shell",
-      "command": "${workspaceFolder}/seowon-cli.exe",
+      "command": "${workspaceFolder}/seowon-tui.exe",
       "args": ["--demo"],
       "dependsOn": "build seowon-cli"
     }

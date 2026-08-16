@@ -4,7 +4,7 @@
 #include "crypto.h"
 #include "parse.h"
 #include "fs.h"
-#include "../front/ui.h"
+#include "../front/tui/ui.h"
 #include "../util.h"
 
 // 이 파일 안에서만 쓰는 조회 도우미
@@ -13,6 +13,37 @@ static void snapshot_cookies(SwApp *app);                           // 현재 HT
 static int demo_read(SwApp *app, const char *name, SwBuf *out);     // testdata 파일 읽기
 static int fetch_one_assignments(SwApp *app, SwCourseData *c);      // 한 과목 과제
 static int fetch_one_lessons(SwApp *app, SwCourseData *c);          // 한 과목 이러닝
+static void say_ok(SwApp *app, const char *msg);
+static void say_err(SwApp *app, const char *msg);
+static void say_info(SwApp *app, const char *msg);
+static void say_warn(SwApp *app, const char *msg);
+static void spin(SwApp *app, int speed, const char *text);
+
+static void say_ok(SwApp *app, const char *msg)
+{
+    if (!app->quiet) sw_ui_ok(msg);
+}
+
+static void say_err(SwApp *app, const char *msg)
+{
+    if (!app->quiet) sw_ui_err(msg);
+    if (msg) sw_str_copy(app->last_error, sizeof(app->last_error), msg);
+}
+
+static void say_info(SwApp *app, const char *msg)
+{
+    if (!app->quiet) sw_ui_info(msg);
+}
+
+static void say_warn(SwApp *app, const char *msg)
+{
+    if (!app->quiet) sw_ui_warn(msg);
+}
+
+static void spin(SwApp *app, int speed, const char *text)
+{
+    if (!app->quiet) sw_load_spin(speed, text);
+}
 
 // 저장된 쿠키를 HTTP 세션에 넣기
 static void apply_session_cookies(SwApp *app)
@@ -81,7 +112,7 @@ int sw_app_boot(SwApp *app)
     if (sw_config_load("config.json", &app->cfg) != SW_OK) {
         sw_config_default(&app->cfg);
         sw_config_save(&app->cfg);
-        sw_ui_info("config.json 이 없어 기본값으로 만들었습니다.");
+        say_info(app, "config.json 이 없어 기본값으로 만들었습니다.");
     }
     sw_mkdir_p(app->cfg.data_dir);
 
@@ -97,12 +128,12 @@ int sw_app_boot(SwApp *app)
     if (app->cfg.save_session && sw_session_load(spath, &app->sess) == SW_OK &&
         sw_cookie_jar_usable(&app->sess.cookies)) {
         apply_session_cookies(app);
-        sw_ui_info("저장된 세션으로 접속을 시도합니다.");
+        say_info(app, "저장된 세션으로 접속을 시도합니다.");
         if (sw_app_try_session(app) == SW_OK) {
-            sw_ui_ok("세션을 재사용했습니다. 비밀번호 없이 이어서 조회합니다.");
+            say_ok(app, "세션을 재사용했습니다. 비밀번호 없이 이어서 조회합니다.");
             return SW_OK;
         }
-        sw_ui_warn("세션이 만료되었습니다. 다시 로그인하세요.");
+        say_warn(app, "세션이 만료되었습니다. 다시 로그인하세요.");
     }
     return SW_OK;
 }
@@ -140,80 +171,82 @@ int sw_app_ensure_auth(SwApp *app)
 int sw_app_login_interactive(SwApp *app)
 {
     char sid[SW_STR_ID];            // 학번
-    char pw[128];                   // 비밀번호 (파일에 저장하지 않음)
-    char enc[1024];                 // NICE encryptData
+    char pw[128];                   // 비밀번호
     char prompt[128];               // 학번 입력 안내
+    int rc;                         // 로그인 결과
+
+    if (app->demo) return sw_app_login_with(app, "", "");
+
+    snprintf(prompt, sizeof(prompt), "학번%s%s%s: ", app->cfg.last_student_id[0] ? " [" : "",
+             app->cfg.last_student_id, app->cfg.last_student_id[0] ? "]" : "");
+    sw_read_line(prompt, sid, sizeof(sid));
+    if (!sid[0]) sw_str_copy(sid, sizeof(sid), app->cfg.last_student_id);
+    sw_read_password("비밀번호 (파일에 저장하지 않음): ", pw, sizeof(pw));
+    rc = sw_app_login_with(app, sid, pw);
+#ifdef _WIN32
+    SecureZeroMemory(pw, sizeof(pw));
+#else
+    memset(pw, 0, sizeof(pw));
+#endif
+    return rc;
+}
+
+// 학번·비밀번호로 바로 로그인 (GUI / RPC)
+int sw_app_login_with(SwApp *app, const char *sid, const char *pw)
+{
+    char enc[1024];                 // NICE encryptData
     SwBuf page;                     // 로그인 페이지 HTML
     SwBuf resp;                     // 로그인 API 응답
     SwLoginResult lr;               // 파싱한 로그인 결과
     int status = 0;                 // HTTP 상태 코드
     SwBuf form;                     // POST 본문
     char referer[256];              // Referer 헤더
+    char idbuf[SW_STR_ID];          // 학번 복사
 
-    // 데모는 네트워크 없이 샘플 학번만 넣는다
     if (app->demo) {
         sw_str_copy(app->sess.student_id, sizeof(app->sess.student_id),
-                    app->cfg.last_student_id[0] ? app->cfg.last_student_id : "20241234");
+                    (sid && sid[0]) ? sid : (app->cfg.last_student_id[0] ? app->cfg.last_student_id : "20241234"));
         sw_str_copy(app->sess.user_no, sizeof(app->sess.user_no), app->sess.student_id);
         app->logged_in = 1;
-        sw_ui_ok("데모 모드: 실제 로그인 없이 샘플 데이터로 진행합니다.");
+        say_ok(app, "데모 모드: 실제 로그인 없이 샘플 데이터로 진행합니다.");
         return SW_OK;
     }
 
-    // 학번·비밀번호 입력
-    snprintf(prompt, sizeof(prompt), "학번%s%s%s: ", app->cfg.last_student_id[0] ? " [" : "",
-             app->cfg.last_student_id, app->cfg.last_student_id[0] ? "]" : "");
-    sw_read_line(prompt, sid, sizeof(sid));
-    if (!sid[0]) sw_str_copy(sid, sizeof(sid), app->cfg.last_student_id);
-    if (!sid[0]) {
-        sw_ui_err("학번이 비어 있습니다.");
+    sw_str_copy(idbuf, sizeof(idbuf), sid ? sid : "");
+    if (!idbuf[0]) sw_str_copy(idbuf, sizeof(idbuf), app->cfg.last_student_id);
+    if (!idbuf[0]) {
+        say_err(app, "학번이 비어 있습니다.");
         return SW_ERR;
     }
-    sw_read_password("비밀번호 (파일에 저장하지 않음): ", pw, sizeof(pw));
-    if (!pw[0]) {
-        sw_ui_err("비밀번호가 비어 있습니다.");
+    if (!pw || !pw[0]) {
+        say_err(app, "비밀번호가 비어 있습니다.");
         return SW_ERR;
     }
 
     // 1) 로그인 페이지를 열어 세션 쿠키를 받는다
-    sw_load_spin(50, "로그인 페이지 ");
+    spin(app, 50, "로그인 페이지 ");
     snprintf(referer, sizeof(referer), "%s%s", SW_BASE_URL, SW_LOGIN_PAGE);
     if (sw_http_get(&app->http, SW_LOGIN_PAGE, NULL, 0, &page, &status) != SW_OK) {
-        sw_ui_err(app->http.last_error);
+        say_err(app, app->http.last_error);
         sw_buf_free(&page);
-#ifdef _WIN32
-        SecureZeroMemory(pw, sizeof(pw));
-#else
-        memset(pw, 0, sizeof(pw));
-#endif
         return SW_ERR_NET;
     }
     sw_buf_free(&page);
 
-    // 2) 비밀번호로 encryptData 를 만들고 평문은 지운다
-    if (sw_make_encrypt_data(sid, pw, enc, sizeof(enc)) != SW_OK) {
-        sw_ui_err("로그인 암호문을 만들지 못했습니다.");
-#ifdef _WIN32
-        SecureZeroMemory(pw, sizeof(pw));
-#else
-        memset(pw, 0, sizeof(pw));
-#endif
+    // 2) 비밀번호로 encryptData 를 만든다
+    if (sw_make_encrypt_data(idbuf, pw, enc, sizeof(enc)) != SW_OK) {
+        say_err(app, "로그인 암호문을 만들지 못했습니다.");
         return SW_ERR;
     }
-#ifdef _WIN32
-    SecureZeroMemory(pw, sizeof(pw));
-#else
-    memset(pw, 0, sizeof(pw));
-#endif
 
     // 3) 로그인 API 로 암호문을 보낸다
     sw_buf_init(&form);
     sw_form_add(&form, "encryptData", enc);
-    sw_load_spin(50, "인증 요청 ");
+    spin(app, 50, "인증 요청 ");
     if (sw_http_post(&app->http, SW_LOGIN_API, referer,
                      "application/x-www-form-urlencoded; charset=UTF-8", form.p, form.n, 1, &resp,
                      &status) != SW_OK) {
-        sw_ui_err(app->http.last_error);
+        say_err(app, app->http.last_error);
         sw_buf_free(&form);
         sw_buf_free(&resp);
         return SW_ERR_NET;
@@ -222,26 +255,26 @@ int sw_app_login_interactive(SwApp *app)
 
     // 4) JSON 을 해석해 성공·실패·OTP 를 가른다
     if (sw_parse_login_json(resp.p ? resp.p : "", &lr) != SW_OK) {
-        sw_ui_err("로그인 응답을 해석하지 못했습니다.");
+        say_err(app, "로그인 응답을 해석하지 못했습니다.");
         sw_buf_free(&resp);
         return SW_ERR_PARSE;
     }
     sw_buf_free(&resp);
     if (lr.type == 0) {
-        sw_ui_err(lr.message);
+        say_err(app, lr.message);
         return SW_ERR_AUTH;
     }
     if (lr.type == 2) {
-        sw_ui_err(lr.message);
+        say_err(app, lr.message);
         return SW_ERR_OTP;
     }
 
     // 5) 세션에 학번·쿠키를 남기고, 설정이 켜져 있으면 파일에도 저장한다
-    sw_str_copy(app->sess.student_id, sizeof(app->sess.student_id), sid);
-    sw_str_copy(app->sess.user_no, sizeof(app->sess.user_no), lr.user_no[0] ? lr.user_no : sid);
+    sw_str_copy(app->sess.student_id, sizeof(app->sess.student_id), idbuf);
+    sw_str_copy(app->sess.user_no, sizeof(app->sess.user_no), lr.user_no[0] ? lr.user_no : idbuf);
     sw_now_iso(app->sess.saved_at, sizeof(app->sess.saved_at));
     snapshot_cookies(app);
-    sw_str_copy(app->cfg.last_student_id, sizeof(app->cfg.last_student_id), sid);
+    sw_str_copy(app->cfg.last_student_id, sizeof(app->cfg.last_student_id), idbuf);
     sw_config_save(&app->cfg);
     if (app->cfg.save_session) {
         char spath[SW_STR_PATH], rpath[SW_STR_PATH];
@@ -249,7 +282,7 @@ int sw_app_login_interactive(SwApp *app)
         sw_session_save(spath, &app->sess);
     }
     app->logged_in = 1;
-    sw_ui_ok("로그인에 성공했습니다.");
+    say_ok(app, "로그인에 성공했습니다.");
     return SW_OK;
 }
 
@@ -264,7 +297,7 @@ int sw_app_fetch_courses(SwApp *app)
 
     if (app->demo) {
         if (demo_read(app, "courses.html", &body) != SW_OK) {
-            sw_ui_err("testdata/courses.html 을 읽지 못했습니다.");
+            say_err(app, "testdata/courses.html 을 읽지 못했습니다.");
             return SW_ERR_IO;
         }
     } else {
@@ -274,7 +307,7 @@ int sw_app_fetch_courses(SwApp *app)
                          "application/x-www-form-urlencoded; charset=UTF-8", form.p, form.n, 1, &body,
                          &status) != SW_OK) {
             sw_buf_free(&form);
-            sw_ui_err(app->http.last_error);
+            say_err(app, app->http.last_error);
             return SW_ERR_NET;
         }
         sw_buf_free(&form);
@@ -422,12 +455,14 @@ int sw_app_fetch_assignments(SwApp *app, int all)
 
     if (app->n_courses == 0 && sw_app_fetch_courses(app) != SW_OK) return SW_ERR;
     for (i = 0; i < app->n_courses; i++) {
-        sw_load_spin_step((int)i, (int)app->n_courses, "과제 조회 ");
+        if (!app->quiet) sw_load_spin_step((int)i, (int)app->n_courses, "과제 조회 ");
         if (fetch_one_assignments(app, &app->courses[i]) == SW_OK) ok++;
         if (!all) break;
     }
-    sw_load_spin_step((int)app->n_courses, (int)app->n_courses, "과제 조회 ");
-    sw_load_spin_done();
+    if (!app->quiet) {
+        sw_load_spin_step((int)app->n_courses, (int)app->n_courses, "과제 조회 ");
+        sw_load_spin_done();
+    }
     return ok ? SW_OK : SW_ERR;
 }
 
@@ -439,12 +474,14 @@ int sw_app_fetch_lessons(SwApp *app, int all)
 
     if (app->n_courses == 0 && sw_app_fetch_courses(app) != SW_OK) return SW_ERR;
     for (i = 0; i < app->n_courses; i++) {
-        sw_load_spin_step((int)i, (int)app->n_courses, "이러닝 조회 ");
+        if (!app->quiet) sw_load_spin_step((int)i, (int)app->n_courses, "이러닝 조회 ");
         if (fetch_one_lessons(app, &app->courses[i]) == SW_OK) ok++;
         if (!all) break;
     }
-    sw_load_spin_step((int)app->n_courses, (int)app->n_courses, "이러닝 조회 ");
-    sw_load_spin_done();
+    if (!app->quiet) {
+        sw_load_spin_step((int)app->n_courses, (int)app->n_courses, "이러닝 조회 ");
+        sw_load_spin_done();
+    }
     return ok ? SW_OK : SW_ERR;
 }
 

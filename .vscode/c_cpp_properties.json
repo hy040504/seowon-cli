@@ -5,6 +5,7 @@
       "includePath": [
         "${workspaceFolder}/lib",
         "${workspaceFolder}/lib/front",
+        "${workspaceFolder}/lib/front/tui",
         "${workspaceFolder}/lib/back",
         "${workspaceFolder}/lib/c_modules"
       ],

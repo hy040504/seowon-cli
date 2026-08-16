@@ -17,3 +17,6 @@ db/_test_result.json
 session.json
 result.json
 *.user
+__pycache__/
+*.pyc
+.venv/

@@ -11,6 +11,7 @@ int sw_app_boot(SwApp *app);                                        // 설정·�
 
 // 로그인 함수
 int sw_app_login_interactive(SwApp *app);                           // 학번·비밀번호 로그인
+int sw_app_login_with(SwApp *app, const char *sid, const char *pw); // 학번·비밀번호로 바로 로그인 (GUI)
 int sw_app_try_session(SwApp *app);                                 // 저장된 쿠키로 재접속
 int sw_app_ensure_auth(SwApp *app);                                 // 로그인 되어 있는지 확인
 

@@ -2,7 +2,7 @@
 #define SW_FRONT_UI_H
 
 // 커스텀 라이브러리
-#include "../seowon.h"
+#include "../../seowon.h"
 
 // UI 장면 함수들
 void sw_ui_banner(void);                                            // 시작 배너

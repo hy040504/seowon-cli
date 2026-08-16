@@ -1,9 +1,9 @@
 // 커스텀 라이브러리
 #include "prompt.h"
 #include "ui.h"
-#include "../back/data_manager.h"
-#include "../back/fs.h"
-#include "../util.h"
+#include "../../back/data_manager.h"
+#include "../../back/fs.h"
+#include "../../util.h"
 
 // 이 파일 안에서만 쓰는 메뉴·작업 함수
 static void Main(SwApp *app);                   // 메인 메뉴

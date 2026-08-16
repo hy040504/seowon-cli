@@ -1,7 +1,7 @@
 // 커스텀 라이브러리
 #include "ui.h"
-#include "../util.h"
-#include "../back/parse.h"
+#include "../../util.h"
+#include "../../back/parse.h"
 
 // 색상 코드
 #define R "\x1b[0m"

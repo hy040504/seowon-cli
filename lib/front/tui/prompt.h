@@ -2,7 +2,7 @@
 #define SW_FRONT_PROMPT_H
 
 // 커스텀 라이브러리
-#include "../seowon.h"
+#include "../../seowon.h"
 
 // 메뉴 이동 값
 #define SW_MENU_OK 0        // 계속
