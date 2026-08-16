@@ -15,14 +15,14 @@ add_executable(seowon-cli
     lib/back/crypto.c
     lib/back/parse.c
     lib/back/data_manager.c
-    lib/vendor/cJSON.c
+    lib/c_modules/cJSON.c
 )
 
 target_include_directories(seowon-cli PRIVATE
     lib
     lib/front
     lib/back
-    lib/vendor
+    lib/c_modules
 )
 target_compile_definitions(seowon-cli PRIVATE _CRT_SECURE_NO_WARNINGS CJSON_HIDE_SYMBOLS)
 

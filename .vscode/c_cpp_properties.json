@@ -6,7 +6,7 @@
         "${workspaceFolder}/lib",
         "${workspaceFolder}/lib/front",
         "${workspaceFolder}/lib/back",
-        "${workspaceFolder}/lib/vendor"
+        "${workspaceFolder}/lib/c_modules"
       ],
       "defines": ["_CRT_SECURE_NO_WARNINGS", "CJSON_HIDE_SYMBOLS", "_WIN32"],
       "cStandard": "c11",

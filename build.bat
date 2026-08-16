@@ -2,8 +2,8 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-set SRC=main.c test.c lib\util.c lib\front\ui.c lib\front\prompt.c lib\back\fs.c lib\back\http.c lib\back\crypto.c lib\back\parse.c lib\back\data_manager.c lib\vendor\cJSON.c
-set INC=-Ilib -Ilib/front -Ilib/back -Ilib/vendor
+set SRC=main.c test.c lib\util.c lib\front\ui.c lib\front\prompt.c lib\back\fs.c lib\back\http.c lib\back\crypto.c lib\back\parse.c lib\back\data_manager.c lib\c_modules\cJSON.c
+set INC=-Ilib -Ilib/front -Ilib/back -Ilib/c_modules
 set DEF=-D_CRT_SECURE_NO_WARNINGS -DCJSON_HIDE_SYMBOLS
 set OUT=seowon-cli.exe
 
@@ -36,7 +36,7 @@ if %ERRORLEVEL%==0 (
 where cl >nul 2>nul
 if %ERRORLEVEL%==0 (
   echo [build] MSVC cl
-  cl /nologo /utf-8 /std:c11 /O2 /W3 /Ilib /Ilib\front /Ilib\back /Ilib\vendor /D_CRT_SECURE_NO_WARNINGS /DCJSON_HIDE_SYMBOLS %SRC% /Fe:%OUT% /link winhttp.lib
+  cl /nologo /utf-8 /std:c11 /O2 /W3 /Ilib /Ilib\front /Ilib\back /Ilib\c_modules /D_CRT_SECURE_NO_WARNINGS /DCJSON_HIDE_SYMBOLS %SRC% /Fe:%OUT% /link winhttp.lib
   goto :done
 )
 

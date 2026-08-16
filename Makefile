@@ -2,7 +2,7 @@
 
 CC      ?= gcc
 CFLAGS  ?= -std=c11 -Wall -Wextra -O2
-INCLUDES = -Ilib -Ilib/front -Ilib/back -Ilib/vendor
+INCLUDES = -Ilib -Ilib/front -Ilib/back -Ilib/c_modules
 DEFS     = -D_CRT_SECURE_NO_WARNINGS -DCJSON_HIDE_SYMBOLS
 LIBS     = -lwinhttp
 SRC      = main.c test.c \
@@ -10,7 +10,7 @@ SRC      = main.c test.c \
            lib/front/ui.c lib/front/prompt.c \
            lib/back/fs.c lib/back/http.c lib/back/crypto.c \
            lib/back/parse.c lib/back/data_manager.c \
-           lib/vendor/cJSON.c
+           lib/c_modules/cJSON.c
 OUT      = seowon-cli.exe
 
 .PHONY: all test demo clean

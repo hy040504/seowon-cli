@@ -137,10 +137,12 @@ seowon-cli
 │  │  ├─ parse.c          JSON / HTML 파서
 │  │  ├─ data_manager.c   로그인 · 과목 · 과제 · 이러닝
 │  │  └─ fs.c             config / session / result
-│  ├─ vendor              cJSON, winhttp_min
+│  ├─ c_modules           외부 라이브러리
+│  │  ├─ cJSON            JSON 읽기·쓰기
+│  │  └─ winhttp_min.h    TCC용 WinHTTP 최소 헤더
 │  ├─ seowon.h
 │  └─ util.c              문자열 · 기간 · LoadSpin
-├─ db/testdata            데모 · 테스트 샘플
+├─ db/testdata            데모 · 테스트 샘플 (실행 결과는 실행 시 생성)
 ├─ config.json.example
 ├─ build.bat
 └─ README.md
@@ -193,7 +195,17 @@ flowchart LR
 6. (선택) `POST /asmnt/asmntLect/Form/asmntStuMain` — 과제 상세
 7. (선택) `POST /lesson/lessonLect/viewLessonStudyDetail` — 학습률. **기록 전송 없음**
 
-HTTP는 Windows **WinHTTP**, JSON은 vendored [cJSON](https://github.com/DaveGamble/cJSON) 입니다.
+HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.com/DaveGamble/cJSON) 입니다.
+
+## 외부 라이브러리 (`lib/c_modules`)
+
+직접 짠 코드가 아니라 가져다 쓰는 소스입니다. `front` / `back` 과 구분해 둡니다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `cJSON.c` / `cJSON.h` | `config.json`, `session.json`, `result.json`, 로그인 JSON |
+| `cJSON.LICENSE` | cJSON MIT 라이선스 |
+| `winhttp_min.h` | TinyCC처럼 SDK `winhttp.h` 가 없을 때 쓰는 선언. 본체는 `winhttp.dll` |
 
 ---
 
