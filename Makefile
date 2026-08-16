@@ -31,7 +31,7 @@ demo: $(OUT)
 gui: $(GUI_OUT)
 
 $(GUI_OUT): gui_main.c
-	$(CC) $(CFLAGS) -o $(GUI_OUT) gui_main.c
+	$(CC) $(CFLAGS) -o $(GUI_OUT) gui_main.c -luser32
 
 clean:
 	-del /Q $(OUT) $(GUI_OUT) 2>nul

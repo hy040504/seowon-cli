@@ -32,30 +32,30 @@ goto :eof
 where gcc >nul 2>nul
 if %ERRORLEVEL%==0 (
   echo [build] gcc -^> %OUT%
-  gcc -std=c11 -Wall -Wextra -O2 %INC% %DEF% -o %OUT% %SRC% -lwinhttp
+  gcc -std=c11 -Wall -Wextra -O2 %INC% %DEF% -o %OUT% %SRC% -lwinhttp -luser32
   goto :comp_done
 )
 if exist "%USERPROFILE%\tools\tcc\tcc\tcc.exe" (
   echo [build] tcc -^> %OUT%
-  "%USERPROFILE%\tools\tcc\tcc\tcc.exe" %INC% %DEF% -o %OUT% %SRC% -lwinhttp
+  "%USERPROFILE%\tools\tcc\tcc\tcc.exe" %INC% %DEF% -o %OUT% %SRC% -lwinhttp -luser32
   goto :comp_done
 )
 where tcc >nul 2>nul
 if %ERRORLEVEL%==0 (
   echo [build] tcc -^> %OUT%
-  tcc %INC% %DEF% -o %OUT% %SRC% -lwinhttp
+  tcc %INC% %DEF% -o %OUT% %SRC% -lwinhttp -luser32
   goto :comp_done
 )
 where clang >nul 2>nul
 if %ERRORLEVEL%==0 (
   echo [build] clang -^> %OUT%
-  clang -std=c11 -Wall -Wextra -O2 %INC% %DEF% -o %OUT% %SRC% -lwinhttp
+  clang -std=c11 -Wall -Wextra -O2 %INC% %DEF% -o %OUT% %SRC% -lwinhttp -luser32
   goto :comp_done
 )
 where cl >nul 2>nul
 if %ERRORLEVEL%==0 (
   echo [build] MSVC cl -^> %OUT%
-  cl /nologo /utf-8 /std:c11 /O2 /W3 /Ilib /Ilib\front /Ilib\front\tui /Ilib\back /Ilib\c_modules /D_CRT_SECURE_NO_WARNINGS /DCJSON_HIDE_SYMBOLS %SRC% /Fe:%OUT% /link winhttp.lib
+  cl /nologo /utf-8 /std:c11 /O2 /W3 /Ilib /Ilib\front /Ilib\front\tui /Ilib\back /Ilib\c_modules /D_CRT_SECURE_NO_WARNINGS /DCJSON_HIDE_SYMBOLS %SRC% /Fe:%OUT% /link winhttp.lib user32.lib
   goto :comp_done
 )
 echo Compiler not found.

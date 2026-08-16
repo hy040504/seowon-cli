@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .backend import Backend, BackendError
+from backend import Backend, BackendError
 
 
 NAV = ["로그인 / 세션", "과제 확인", "이러닝 확인", "현황 한 표", "파일 / 설정"]

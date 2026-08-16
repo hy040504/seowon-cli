@@ -23,6 +23,9 @@ target_include_directories(seowon-tui PRIVATE
 target_compile_definitions(seowon-tui PRIVATE _CRT_SECURE_NO_WARNINGS CJSON_HIDE_SYMBOLS)
 
 add_executable(seowon-gui gui_main.c)
+if(WIN32)
+    target_link_libraries(seowon-gui PRIVATE user32)
+endif()
 
 if(MSVC)
     target_compile_options(seowon-tui PRIVATE /utf-8 /W3)
