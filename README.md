@@ -1,7 +1,7 @@
 # seowon-cli
 
 <p align="center">
-  <strong>서원대학교 e-campus 과제 · 이러닝 현황을 터미널에서 한 번에 보는 C CLI</strong>
+  <strong>서원대학교 e-campus 과제 · 이러닝 현황을 터미널과 창에서 한 번에 보는 C 클라이언트</strong>
 </p>
 
 <p align="center">
@@ -16,6 +16,8 @@
 
 공식 SDK가 아닙니다. **조회만** 합니다. 과제 제출, 이러닝 자동 시청, 수강신청은 넣지 않습니다.
 
+저장소: [hy040504/seowon-cli](https://github.com/hy040504/seowon-cli)
+
 ```text
 ============================================
   서원대 e-campus 과제·이러닝 현황   v1.0.0
@@ -24,7 +26,7 @@
 [100.0%] Loading... *
 
   메인 메뉴
-  [로그인됨: 20241234]
+  [로그인됨: 홍길동 (20241234) · 컴퓨터공학과]
   1. 로그인 / 세션
   2. 과제 확인
   3. 이러닝 확인
@@ -32,6 +34,16 @@
   5. 파일 / 설정
   0. 종료
 ```
+
+---
+
+## 브랜치
+
+| 브랜치 | 들어 있는 것 | 실행 파일 |
+| --- | --- | --- |
+| [`main`](https://github.com/hy040504/seowon-cli/tree/main) | TUI + GUI | `seowon-tui.exe`, `seowon-gui.exe` |
+| [`tui`](https://github.com/hy040504/seowon-cli/tree/tui) | 터미널만. PyQt 없음 | `seowon-tui.exe` |
+| [`gui`](https://github.com/hy040504/seowon-cli/tree/gui) | PyQt만. 터미널 메뉴 없음 | `seowon-gui.exe` + `seowon-core.exe` |
 
 ---
 
@@ -55,7 +67,8 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 
 ## 메뉴
 
-`switch` 계층 메뉴입니다. `z` / `0` 은 뒤로, `q` 는 종료입니다.
+`switch` 계층 메뉴입니다. `z` / `0` 은 뒤로, `q` 는 종료입니다.  
+기능표 번호(`1.1.1` 같은 것)는 메뉴에 적지 않습니다.
 
 ```text
 메인
@@ -78,6 +91,11 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 
 시작 화면과 메뉴 전환에는 [SeowonProject](https://github.com/hy040504/SeowonProject) 의 `LoadSpin` 을 응용한 로딩 효과가 있습니다.
 
+비밀번호는 `*` 로 가리고, **마지막으로 친 글자만** 잠깐 보입니다.
+
+로그인에 성공하면 이름·학번·학과를 보여 줍니다. 예: `홍길동 (20241234) · 컴퓨터공학과`  
+e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sugangh`)에서 한 번 더 가져옵니다.
+
 ---
 
 ## 빠른 시작
@@ -91,6 +109,7 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 | 편집기 | Visual Studio Code |
 | 컴파일러 | MinGW-w64 / MSVC / TinyCC 중 하나 |
 | 저장 | JSON만 (`config.json`, `session.json`, `result.json`) |
+| 빌드 | `build.bat` 만. Makefile / CMake 없음 |
 
 ```bat
 winget install BrechtSanders.WinLibs.POSIX.UCRT
@@ -152,10 +171,13 @@ seowon-cli
 │  │     ├─ window.py
 │  │     └─ backend.py
 │  ├─ back                조회 · 파일 · 패킷
+│  │  ├─ http / crypto / parse / fs
+│  │  ├─ data_manager
+│  │  └─ ssv / sugang     이름·학과 (수강신청 SSO)
 │  ├─ c_modules           외부 라이브러리 (cJSON, winhttp_min)
 │  ├─ seowon.h
 │  └─ util.c
-├─ db/testdata
+├─ db/testdata            데모·테스트용 HTML/JSON (세션 파일 아님)
 ├─ requirements.txt       PyQt6
 ├─ build.bat
 └─ README.md
@@ -163,10 +185,11 @@ seowon-cli
 
 ```mermaid
 flowchart LR
-  A[prompt.c 메뉴] --> B[data_manager.c]
+  A["prompt.c / window.py"] --> B[data_manager.c]
   B --> C[crypto.c]
   B --> D[http.c]
   D --> E[e-campus]
+  D --> H[sugangh SSV]
   D --> F[parse.c]
   F --> B
   B --> G[fs.c JSON]
@@ -177,6 +200,9 @@ flowchart LR
 ## 저장 파일
 
 `config.json` 은 실행 폴더, 세션·결과는 `dataDir`(기본 `./db`) 아래입니다.  
+`./db` 가 없으면 실행할 때 만듭니다.  
+저장소에는 **`db/testdata`만** 올립니다. `session.json` / `result.json` / `config.json` 은 `.gitignore` 입니다.
+
 예제: [`config.json.example`](config.json.example)
 
 ```json
@@ -191,8 +217,23 @@ flowchart LR
 | 파일 | 내용 |
 | --- | --- |
 | `config.json` | 마지막 학번, 저장 옵션, 폴더 |
-| `db/session.json` | 학번 + 쿠키. **비밀번호 없음** |
+| `db/session.json` | 학번, 이름, 학과, 쿠키. **비밀번호 없음** |
 | `db/result.json` | 최근 조회 결과. 오프라인에서 다시 그림 |
+| `db/testdata/` | 데모·단위 테스트용 고정 응답 |
+
+`session.json` 필드:
+
+```json
+{
+  "studentId": "20241234",
+  "userNo": "20241234",
+  "studentName": "홍길동",
+  "deptName": "컴퓨터공학과",
+  "deptCd": "320",
+  "savedAt": "2026-08-16T12:00:00",
+  "cookies": []
+}
+```
 
 ---
 
@@ -203,11 +244,11 @@ flowchart LR
 1. `GET /home/mainPop/popup/login` — 세션 쿠키
 2. NICE `encryptData` 를 `POST /user/userHome/login`
 3. 이름·학과: `sugangh.seowon.ac.kr` 의 `findAppcsLogin` / `findStunoInfo` (SSV)
-3. `POST /crs/creCrsHome/classRoomCrsCreList` — 과목
-4. `POST /asmnt/asmntHome/stuAsmntGridList` — 과제
-5. `POST /lesson/lessonLect/lessonList` — 이러닝 차시
-6. (선택) `POST /asmnt/asmntLect/Form/asmntStuMain` — 과제 상세
-7. (선택) `POST /lesson/lessonLect/viewLessonStudyDetail` — 학습률. **기록 전송 없음**
+4. `POST /crs/creCrsHome/classRoomCrsCreList` — 과목
+5. `POST /asmnt/asmntHome/stuAsmntGridList` — 과제
+6. `POST /lesson/lessonLect/lessonList` — 이러닝 차시
+7. (선택) `POST /asmnt/asmntLect/Form/asmntStuMain` — 과제 상세
+8. (선택) `POST /lesson/lessonLect/viewLessonStudyDetail` — 학습률. **기록 전송 없음**
 
 HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.com/DaveGamble/cJSON) 입니다.
 
@@ -231,6 +272,43 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 - 다른 학생 계정 조회
 - `.dat` / `.txt` / SQLite
 - 비밀번호를 JSON에 저장
+
+---
+
+## 변경 사항
+
+코드에 이미 들어가 있는 내용을 README에 한곳에 모아 둡니다.
+
+### 브랜치 나누기
+
+- `main` — TUI와 GUI를 모두 둠.
+- `tui` — 터미널만. `lib/front/gui`, `gui_main.c`, `requirements.txt` 없음.
+- `gui` — PyQt만. 터미널 메뉴(`prompt.c`) 없음. 조회는 `seowon-core.exe --rpc`.
+
+### 화면 · 입력
+
+- [SeowonProject](https://github.com/hy040504/SeowonProject) 처럼 `lib/front` · `lib/back` 으로 나누고, 주석은 한국어, 파일 안 함수는 `static`.
+- 메뉴를 `switch` 계층으로 바꿈. `z`/`0` 뒤로, `q` 종료.
+- 기능표 번호(`1.1.1`, `1.1.2` …)를 메뉴 글에서 뺌.
+- 비밀번호는 `*` 로 가리고, 마지막 글자만 잠깐 보여 줌.
+
+### 로그인 후 이름 · 학번 · 학과
+
+- e-campus 로그인만으로는 이름·학과가 안 나와서 `sugangh` SSO SSV(`findAppcsLogin`, `findStunoInfo`)를 씀.
+- TUI·GUI 로그인 줄에 `이름 (학번) · 학과` 를 표시.
+- `session.json` 에 `studentName`, `deptName`, `deptCd` 를 같이 저장. 비밀번호는 저장하지 않음.
+
+### 저장소 · 빌드
+
+- 예전 `project/` 안 파일을 저장소 루트로 옮김.
+- 외부 라이브러리 폴더 이름: `lib/vendor` → `lib/c_modules`.
+- `Makefile`, `CMakeLists.txt` 를 지움. 빌드는 `build.bat` 만.
+- `./db` 는 실행 때 없으면 만듦. Git에는 `db/testdata` 만 두고, 실제 `session.json` / `result.json` 은 올리지 않음.
+
+### GUI
+
+- `lib/front/gui` 에 PyQt6 화면. `seowon-gui.exe` 가 `main.py` 를 띄움.
+- GUI 조회는 `seowon-tui.exe --rpc`(main) 또는 `seowon-core.exe --rpc`(gui 브랜치).
 
 ---
 
