@@ -1,0 +1,39 @@
+{
+	"savedAt":	"2026-08-16T12:00:00",
+	"semester":	"2026-2",
+	"courses":	[{
+			"courseTitle":	"논리회로",
+			"crsCreCd":	"2026_1_736078_01",
+			"assignments":	[{
+					"title":	"강의노트 2",
+					"period":	"2026.05.14 ~ 2026.05.21",
+					"status":	"미제출",
+					"dueNow":	false
+				}, {
+					"title":	"중간 대체 과제",
+					"period":	"2026.08.10 ~ 2026.08.20",
+					"status":	"미제출",
+					"dueNow":	true
+				}],
+			"elearning":	[{
+					"week":	"5주차",
+					"title":	"5-1. 조합논리",
+					"period":	"2026.03.30 ~ 2026.04.05",
+					"attendanceStatus":	"미학습(결석)",
+					"needsWatch":	false,
+					"progressPercent":	null
+				}, {
+					"week":	"8주차",
+					"title":	"8-1. 여름학기 복습",
+					"period":	"2026.08.11 ~ 2026.08.22",
+					"attendanceStatus":	"미학습(결석)",
+					"needsWatch":	true,
+					"progressPercent":	null
+				}]
+		}],
+	"summary":	[{
+			"courseTitle":	"논리회로",
+			"dueAssignments":	1,
+			"pendingLessons":	1
+		}]
+}

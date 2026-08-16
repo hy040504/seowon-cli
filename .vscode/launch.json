@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "실행 (로그인 메뉴)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/seowon-cli.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "preLaunchTask": "build seowon-cli"
+    },
+    {
+      "name": "데모 모드",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/seowon-cli.exe",
+      "args": ["--demo"],
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "preLaunchTask": "build seowon-cli"
+    }
+  ]
+}

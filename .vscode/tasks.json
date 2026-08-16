@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build seowon-cli",
+      "type": "shell",
+      "command": "${workspaceFolder}/build.bat",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "test seowon-cli",
+      "type": "shell",
+      "command": "${workspaceFolder}/seowon-cli.exe",
+      "args": ["--test"],
+      "group": "test",
+      "dependsOn": "build seowon-cli"
+    },
+    {
+      "label": "demo seowon-cli",
+      "type": "shell",
+      "command": "${workspaceFolder}/seowon-cli.exe",
+      "args": ["--demo"],
+      "dependsOn": "build seowon-cli"
+    }
+  ]
+}
