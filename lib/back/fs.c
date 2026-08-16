@@ -108,6 +108,9 @@ int sw_session_load(const char *path, SwSession *sess)
     if (!root) return SW_ERR_PARSE;
     sw_str_copy(sess->student_id, sizeof(sess->student_id), js_str(root, "studentId", ""));
     sw_str_copy(sess->user_no, sizeof(sess->user_no), js_str(root, "userNo", sess->student_id));
+    sw_str_copy(sess->student_name, sizeof(sess->student_name), js_str(root, "studentName", ""));
+    sw_str_copy(sess->dept_name, sizeof(sess->dept_name), js_str(root, "deptName", ""));
+    sw_str_copy(sess->dept_cd, sizeof(sess->dept_cd), js_str(root, "deptCd", ""));
     sw_str_copy(sess->saved_at, sizeof(sess->saved_at), js_str(root, "savedAt", ""));
     cookies = cJSON_GetObjectItemCaseSensitive(root, "cookies");
     cJSON_ArrayForEach(it, cookies)
@@ -142,6 +145,9 @@ int sw_session_save(const char *path, const SwSession *sess)
     }
     cJSON_AddStringToObject(root, "studentId", sess->student_id);
     cJSON_AddStringToObject(root, "userNo", sess->user_no);
+    cJSON_AddStringToObject(root, "studentName", sess->student_name);
+    cJSON_AddStringToObject(root, "deptName", sess->dept_name);
+    cJSON_AddStringToObject(root, "deptCd", sess->dept_cd);
     cJSON_AddStringToObject(root, "savedAt", sess->saved_at);
     for (i = 0; i < sess->cookies.count; i++) {
         cJSON *c = cJSON_CreateObject();

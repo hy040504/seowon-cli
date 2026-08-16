@@ -122,6 +122,10 @@ class MainWindow(QMainWindow):
         row.addWidget(b1)
         row.addWidget(b2)
         v.addLayout(row)
+        self.profile = QLabel("로그인하면 이름 · 학번 · 학과를 보여 줍니다.")
+        self.profile.setObjectName("hint")
+        self.profile.setWordWrap(True)
+        v.addWidget(self.profile)
         hint = QLabel("공식 SDK가 아닙니다. 조회만 하며 과제 제출·자동 시청은 하지 않습니다.")
         hint.setObjectName("hint")
         hint.setWordWrap(True)
@@ -230,8 +234,11 @@ class MainWindow(QMainWindow):
         try:
             self.backend.login(self.id_edit.text().strip(), self.pw_edit.text(), self.demo_chk.isChecked())
             self.pw_edit.clear()
-            self.status.setText(f"로그인됨: {self.backend.student_id}" + ("  [데모]" if self.backend.demo else ""))
-            self._alert("로그인했습니다. 과제·이러닝 메뉴에서 조회하세요.")
+            who = self.backend.profile_label()
+            tag = "  [데모]" if self.backend.demo else ""
+            self.status.setText(f"로그인됨: {who}{tag}")
+            self.profile.setText(who)
+            self._alert(f"로그인했습니다.\n{who}\n과제·이러닝 메뉴에서 조회하세요.")
         except BackendError as e:
             self._alert(str(e), True)
 
@@ -240,8 +247,10 @@ class MainWindow(QMainWindow):
             self.on_login()
             return
         if self.backend.try_session():
-            self.status.setText(f"로그인됨: {self.backend.student_id}")
-            self._alert("저장된 세션을 재사용합니다.")
+            who = self.backend.profile_label()
+            self.status.setText(f"로그인됨: {who}")
+            self.profile.setText(who)
+            self._alert(f"저장된 세션을 재사용합니다.\n{who}")
         else:
             self._alert("세션이 없거나 만료되었습니다. 다시 로그인하세요.", True)
 

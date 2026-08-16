@@ -10,6 +10,7 @@ SRC      = main.c test.c \
            lib/front/tui/ui.c lib/front/tui/prompt.c \
            lib/back/fs.c lib/back/http.c lib/back/crypto.c \
            lib/back/parse.c lib/back/data_manager.c \
+           lib/back/ssv.c lib/back/sugang.c \
            lib/c_modules/cJSON.c
 OUT      = seowon-tui.exe
 

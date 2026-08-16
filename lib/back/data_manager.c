@@ -4,6 +4,7 @@
 #include "crypto.h"
 #include "parse.h"
 #include "fs.h"
+#include "sugang.h"
 #include "../front/tui/ui.h"
 #include "../util.h"
 
@@ -207,6 +208,7 @@ int sw_app_login_with(SwApp *app, const char *sid, const char *pw)
         sw_str_copy(app->sess.student_id, sizeof(app->sess.student_id),
                     (sid && sid[0]) ? sid : (app->cfg.last_student_id[0] ? app->cfg.last_student_id : "20241234"));
         sw_str_copy(app->sess.user_no, sizeof(app->sess.user_no), app->sess.student_id);
+        sw_sugang_load_demo_profile(app->testdata_dir, &app->sess);
         app->logged_in = 1;
         say_ok(app, "데모 모드: 실제 로그인 없이 샘플 데이터로 진행합니다.");
         return SW_OK;
@@ -274,6 +276,11 @@ int sw_app_login_with(SwApp *app, const char *sid, const char *pw)
     sw_str_copy(app->sess.user_no, sizeof(app->sess.user_no), lr.user_no[0] ? lr.user_no : idbuf);
     sw_now_iso(app->sess.saved_at, sizeof(app->sess.saved_at));
     snapshot_cookies(app);
+
+    // 6) 수강신청 SSO 에서 이름·학과를 가져온다 (실패해도 로그인은 유지)
+    spin(app, 50, "학생 정보 ");
+    sw_sugang_fetch_profile(idbuf, pw, &app->sess);
+
     sw_str_copy(app->cfg.last_student_id, sizeof(app->cfg.last_student_id), idbuf);
     sw_config_save(&app->cfg);
     if (app->cfg.save_session) {
@@ -282,7 +289,17 @@ int sw_app_login_with(SwApp *app, const char *sid, const char *pw)
         sw_session_save(spath, &app->sess);
     }
     app->logged_in = 1;
-    say_ok(app, "로그인에 성공했습니다.");
+    {
+        char who[SW_STR_TITLE + SW_STR_ID + 32];
+        sw_session_label(&app->sess, who, sizeof(who));
+        if (app->sess.student_name[0] || app->sess.dept_name[0]) {
+            char line[SW_STR_TITLE + 64];
+            snprintf(line, sizeof(line), "로그인에 성공했습니다.  %s", who);
+            say_ok(app, line);
+        } else {
+            say_ok(app, "로그인에 성공했습니다.");
+        }
+    }
     return SW_OK;
 }
 

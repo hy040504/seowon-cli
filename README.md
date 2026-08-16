@@ -204,6 +204,7 @@ flowchart LR
 
 1. `GET /home/mainPop/popup/login` — 세션 쿠키
 2. NICE `encryptData` 를 `POST /user/userHome/login`
+3. 이름·학과: `sugangh.seowon.ac.kr` 의 `findAppcsLogin` / `findStunoInfo` (SSV)
 3. `POST /crs/creCrsHome/classRoomCrsCreList` — 과목
 4. `POST /asmnt/asmntHome/stuAsmntGridList` — 과제
 5. `POST /lesson/lessonLect/lessonList` — 이러닝 차시

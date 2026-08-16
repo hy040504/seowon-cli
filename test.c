@@ -4,6 +4,8 @@
 #include "./lib/back/parse.h"
 #include "./lib/back/crypto.h"
 #include "./lib/back/fs.h"
+#include "./lib/back/ssv.h"
+#include "./lib/back/sugang.h"
 
 #ifndef CJSON_HIDE_SYMBOLS
 #define CJSON_HIDE_SYMBOLS
@@ -80,6 +82,33 @@ int sw_run_tests(const char *testdata_dir)
         sw_str_copy(l.attendance, sizeof(l.attendance), "출석");
         sw_mark_lesson_flags(&l, mid);
         expect_true(!l.needs_watch, "attended not needsWatch");
+    }
+
+    // 학생정보 SSV (findStunoInfo / dsSession)
+    {
+        char body[256];
+        char name[64], id[32], dept[64];
+        snprintf(body, sizeof(body),
+                 "SSV:utf-8%cDataset:dsStunoInfo%c_RowType_%cstdntNm:STRING(256)%cstuno:STRING(256)%cdeprtNm:STRING(256)"
+                 "%cN%c홍길동%c20241234%c컴퓨터공학과",
+                 0x1e, 0x1e, 0x1f, 0x1f, 0x1f, 0x1e, 0x1f, 0x1f, 0x1f);
+        expect_true(sw_ssv_field(body, "dsStunoInfo", "stdntNm", name, sizeof(name)) == SW_OK, "ssv name");
+        expect_streq(name, "홍길동", "ssv name value");
+        expect_true(sw_ssv_field(body, "dsStunoInfo", "stuno", id, sizeof(id)) == SW_OK, "ssv stuno");
+        expect_streq(id, "20241234", "ssv stuno value");
+        expect_true(sw_ssv_field(body, "dsStunoInfo", "deprtNm", dept, sizeof(dept)) == SW_OK, "ssv dept");
+        expect_streq(dept, "컴퓨터공학과", "ssv dept value");
+    }
+    {
+        SwSession s;
+        char who[128];
+        memset(&s, 0, sizeof(s));
+        expect_true(sw_sugang_load_demo_profile(testdata_dir, &s) == SW_OK, "demo profile load");
+        expect_streq(s.student_name, "홍길동", "demo profile name");
+        expect_streq(s.student_id, "20241234", "demo profile id");
+        expect_streq(s.dept_name, "컴퓨터공학과", "demo profile dept");
+        sw_session_label(&s, who, sizeof(who));
+        expect_true(sw_str_contains(who, "홍길동") && sw_str_contains(who, "20241234"), "session label");
     }
 
     // 로그인 JSON

@@ -14,6 +14,8 @@ set(SW_COMMON
     lib/back/crypto.c
     lib/back/parse.c
     lib/back/data_manager.c
+    lib/back/ssv.c
+    lib/back/sugang.c
     lib/c_modules/cJSON.c
 )
 

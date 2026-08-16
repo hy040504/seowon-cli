@@ -47,8 +47,40 @@ class Backend:
         self.demo = True
         self.logged_in = False
         self.student_id = ""
+        self.student_name = ""
+        self.dept_name = ""
+        self.dept_cd = ""
         self.data: dict[str, Any] = {"courses": [], "summary": []}
         self.last_error = ""
+
+    def profile_label(self) -> str:
+        sid = self.student_id or "-"
+        if self.student_name and self.dept_name:
+            return f"{self.student_name} ({sid}) · {self.dept_name}"
+        if self.student_name:
+            return f"{self.student_name} ({sid})"
+        if self.dept_name:
+            return f"{sid} · {self.dept_name}"
+        return sid
+
+    def _apply_profile(self, out: dict[str, Any], fallback_id: str = "") -> None:
+        self.student_id = str(out.get("studentId") or fallback_id or self.student_id or "")
+        self.student_name = str(out.get("studentName") or self.student_name or "")
+        self.dept_name = str(out.get("deptName") or self.dept_name or "")
+        self.dept_cd = str(out.get("deptCd") or self.dept_cd or "")
+
+    def _load_demo_profile(self) -> None:
+        path = testdata_dir() / "student.json"
+        if path.is_file():
+            j = json.loads(path.read_text(encoding="utf-8"))
+            self.student_id = str(j.get("stuno") or self.student_id or "20241234")
+            self.student_name = str(j.get("stdntNm") or "")
+            self.dept_name = str(j.get("deprtNm") or "")
+            self.dept_cd = str(j.get("deptCd") or "")
+        elif not self.student_id:
+            self.student_id = "20241234"
+            self.student_name = "홍길동"
+            self.dept_name = "컴퓨터공학과"
 
     def load_demo_result(self) -> dict[str, Any]:
         path = testdata_dir() / "sample_result.json"
@@ -56,18 +88,34 @@ class Backend:
             raise BackendError("db/testdata/sample_result.json 이 없습니다.")
         self.data = json.loads(path.read_text(encoding="utf-8"))
         self.logged_in = True
-        self.student_id = "20241234"
+        self._load_demo_profile()
         return self.data
 
     def login(self, student_id: str, password: str, demo: bool) -> dict[str, Any]:
         self.demo = demo
+        exe = find_tui_exe()
         if demo:
+            if exe:
+                env = os.environ.copy()
+                env["SEOWON_ID"] = student_id
+                env["SEOWON_PW"] = password or "demo"
+                out = self._run(exe, ["--demo", "--rpc", "login"], env=env)
+                self.logged_in = True
+                self._apply_profile(out, student_id)
+                if not self.student_name:
+                    self._load_demo_profile()
+                self.load_demo_result()
+                return out
             self.load_demo_result()
             if student_id.strip():
                 self.student_id = student_id.strip()
-            return {"ok": True, "studentId": self.student_id}
+            return {
+                "ok": True,
+                "studentId": self.student_id,
+                "studentName": self.student_name,
+                "deptName": self.dept_name,
+            }
 
-        exe = find_tui_exe()
         if not exe:
             raise BackendError("seowon-tui.exe 가 없습니다. 먼저 build.bat tui 를 실행하세요.")
         env = os.environ.copy()
@@ -77,7 +125,7 @@ class Backend:
         if not out.get("ok"):
             raise BackendError(out.get("error") or "로그인에 실패했습니다.")
         self.logged_in = True
-        self.student_id = out.get("studentId") or student_id
+        self._apply_profile(out, student_id)
         return out
 
     def try_session(self) -> bool:
@@ -87,7 +135,7 @@ class Backend:
         out = self._run(exe, ["--rpc", "session"])
         if out.get("ok"):
             self.logged_in = True
-            self.student_id = out.get("studentId") or ""
+            self._apply_profile(out)
             return True
         return False
 

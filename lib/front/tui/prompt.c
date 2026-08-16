@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "../../back/data_manager.h"
 #include "../../back/fs.h"
+#include "../../back/sugang.h"
 #include "../../util.h"
 
 // 이 파일 안에서만 쓰는 메뉴·작업 함수
@@ -37,8 +38,15 @@ static void drawMenuHead(SwApp *app, const char *title)
     sw_ui_banner();
     if (title && title[0]) printf("\n  %s\n", title);
     if (app) {
-        if (app->demo) printf("  \x1b[2m[데모 모드 — testdata JSON/HTML]\x1b[0m\n");
-        else if (app->logged_in) printf("  \x1b[2m[로그인됨: %s]\x1b[0m\n", app->sess.student_id);
+        if (app->demo) {
+            char who[SW_STR_TITLE + SW_STR_ID + 32];
+            sw_session_label(&app->sess, who, sizeof(who));
+            printf("  \x1b[2m[데모 모드 — %s]\x1b[0m\n", who[0] ? who : "testdata");
+        } else if (app->logged_in) {
+            char who[SW_STR_TITLE + SW_STR_ID + 32];
+            sw_session_label(&app->sess, who, sizeof(who));
+            printf("  \x1b[2m[로그인됨: %s]\x1b[0m\n", who);
+        }
     }
 }
 

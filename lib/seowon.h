@@ -38,6 +38,11 @@
 #define SW_LESSON_WINDOW "/lesson/lessonOpen/lessonNewWindow"
 #define SW_STUDY_DETAIL "/lesson/lessonLect/viewLessonStudyDetail" // 학습률 조회
 #define SW_LESSON_MCD "MH_210504T143020d03000a"
+#define SW_SUGANG_URL "https://sugangh.seowon.ac.kr"             // 수강신청(학생정보)
+#define SW_SUGANG_HOME "/nx/"
+#define SW_SUGANG_TERM "/com/SsoCtr/findScomUnvfrSchdlInfo.do?menuId=edu&pgmId=edu"
+#define SW_SUGANG_LOGIN "/com/SsoCtr/findAppcsLogin.do?menuId=edu&pgmId=edu"
+#define SW_SUGANG_STUNO "/com/SsoCtr/findStunoInfo.do?menuId=edu&pgmId=edu"
 #define SW_PROGRESS_TYPE "WEEK"
 #define SW_LIST_SCALE "100"                              // 목록 조회 개수
 
@@ -99,6 +104,9 @@ typedef struct {
 typedef struct {
     char student_id[SW_STR_ID];     // 학번
     char user_no[SW_STR_ID];        // 사용자 번호
+    char student_name[SW_STR_TITLE]; // 이름 (findStunoInfo / dsSession)
+    char dept_name[SW_STR_TITLE];   // 학과명
+    char dept_cd[SW_STR_TINY];      // 학과 코드
     char saved_at[SW_STR_TINY];     // 저장 시각
     SwCookieJar cookies;            // 재접속용 쿠키
 } SwSession;

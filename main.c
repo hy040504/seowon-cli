@@ -117,15 +117,18 @@ static int run_rpc(SwApp *app, int argc, char **argv)
         if (argc > i + 2 && argv[i + 2][0]) id = argv[i + 2];
         if (argc > i + 3 && argv[i + 3][0]) pw = argv[i + 3];
         rc = sw_app_login_with(app, id ? id : "", pw ? pw : "");
-        printf("{\"ok\":%s,\"studentId\":\"%s\",\"error\":\"%s\"}\n", rc == SW_OK ? "true" : "false",
-               app->sess.student_id, app->last_error);
+        printf("{\"ok\":%s,\"studentId\":\"%s\",\"studentName\":\"%s\",\"deptName\":\"%s\",\"deptCd\":\"%s\",\"error\":\"%s\"}\n",
+               rc == SW_OK ? "true" : "false", app->sess.student_id, app->sess.student_name,
+               app->sess.dept_name, app->sess.dept_cd, app->last_error);
         return rc == SW_OK ? 0 : 1;
     }
 
     if (strcmp(cmd, "session") == 0) {
         int rc = sw_app_try_session(app);
-        printf("{\"ok\":%s,\"studentId\":\"%s\",\"error\":\"%s\"}\n", rc == SW_OK ? "true" : "false",
-               app->sess.student_id, rc == SW_OK ? "" : "세션이 없거나 만료되었습니다.");
+        printf("{\"ok\":%s,\"studentId\":\"%s\",\"studentName\":\"%s\",\"deptName\":\"%s\",\"deptCd\":\"%s\",\"error\":\"%s\"}\n",
+               rc == SW_OK ? "true" : "false", app->sess.student_id, app->sess.student_name,
+               app->sess.dept_name, app->sess.dept_cd,
+               rc == SW_OK ? "" : "세션이 없거나 만료되었습니다.");
         return rc == SW_OK ? 0 : 1;
     }
 
