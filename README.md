@@ -61,7 +61,7 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 | 고른 차시 학습률(%) | `3` → `3` |
 
 학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다.  
-비밀번호는 JSON에 넣지 않습니다.
+학번·비밀번호는 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 예전처럼 직접 입력합니다. `session.json` / `result.json` / `config.json` 에는 비밀번호를 넣지 않습니다.
 
 ---
 
@@ -72,7 +72,7 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 
 ```text
 메인
-├─ 1  로그인 / 세션          학번·비밀번호, session.json 쿠키 재사용
+├─ 1  로그인 / 세션          login.json 또는 직접 입력, session.json 쿠키 재사용
 ├─ 2  과제 확인
 │   ├─ 1  전체 과제
 │   ├─ 2  현재 수행 가능 (기간 안 + 미제출)
@@ -84,7 +84,7 @@ e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있
 │   └─ 3  학습률(%) — 조회만, 시청 기록 없음
 ├─ 4  현황 한 표             과목별 미제출 / 미완료
 └─ 5  파일 / 설정
-    ├─ 1  config.json
+    ├─ 1  config.json · login.json 상태
     ├─ 2  result.json 저장
     └─ 3  result.json 불러오기
 ```
@@ -108,7 +108,7 @@ e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sug
 | 언어 | C11 |
 | 편집기 | Visual Studio Code |
 | 컴파일러 | MinGW-w64 / MSVC / TinyCC 중 하나 |
-| 저장 | JSON만 (`config.json`, `session.json`, `result.json`) |
+| 저장 | JSON만 (`config.json`, `login.json`, `session.json`, `result.json`) |
 | 빌드 | `build.bat` 만. Makefile / CMake 없음 |
 
 ```bat
@@ -158,6 +158,7 @@ seowon-cli
 │  ├─ seowon.h
 │  └─ util.c
 ├─ db/testdata            데모·테스트용 HTML/JSON (세션 파일 아님)
+├─ login.json.example     학번·비밀번호 빈 칸 예제
 ├─ build.bat
 └─ README.md
 ```
@@ -178,11 +179,11 @@ flowchart LR
 
 ## 저장 파일
 
-`config.json` 은 실행 폴더, 세션·결과는 `dataDir`(기본 `./db`) 아래입니다.  
+`config.json` · `login.json` 은 실행 폴더, 세션·결과는 `dataDir`(기본 `./db`) 아래입니다.  
 `./db` 가 없으면 실행할 때 만듭니다.  
-저장소에는 **`db/testdata`만** 올립니다. `session.json` / `result.json` / `config.json` 은 `.gitignore` 입니다.
+저장소에는 **`db/testdata`만** 올립니다. `session.json` / `result.json` / `config.json` / `login.json` 은 `.gitignore` 입니다.
 
-예제: [`config.json.example`](config.json.example)
+예제: [`config.json.example`](config.json.example), [`login.json.example`](login.json.example)
 
 ```json
 {
@@ -196,9 +197,21 @@ flowchart LR
 | 파일 | 내용 |
 | --- | --- |
 | `config.json` | 마지막 학번, 저장 옵션, 폴더 |
+| `login.json` | 학번·비밀번호. 둘 다 있으면 로그인 입력 생략. **로컬 평문, git 제외** |
 | `db/session.json` | 학번, 이름, 학과, 쿠키. **비밀번호 없음** |
 | `db/result.json` | 최근 조회 결과. 오프라인에서 다시 그림 |
 | `db/testdata/` | 데모·단위 테스트용 고정 응답 |
+
+`login.json` 예제:
+
+```json
+{
+  "studentId": "",
+  "password": ""
+}
+```
+
+학번이나 비밀번호 중 하나라도 비어 있으면 지금처럼 직접 입력합니다.
 
 `session.json` 필드:
 
@@ -237,7 +250,7 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 | 파일 | 역할 |
 | --- | --- |
-| `cJSON.c` / `cJSON.h` | `config.json`, `session.json`, `result.json`, 로그인 JSON |
+| `cJSON.c` / `cJSON.h` | `config.json`, `login.json`, `session.json`, `result.json`, 로그인 응답 JSON |
 | `cJSON.LICENSE` | cJSON MIT 라이선스 |
 | `winhttp_min.h` | TinyCC처럼 SDK `winhttp.h` 가 없을 때 쓰는 선언. 본체는 `winhttp.dll` |
 
@@ -250,7 +263,8 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 - 수강신청 · 희망바구니
 - 다른 학생 계정 조회
 - `.dat` / `.txt` / SQLite
-- 비밀번호를 JSON에 저장
+- `session.json` · `result.json` · `config.json` 에 비밀번호 저장
+- `login.json` 을 Git·원격에 올리기 (로컬 전용)
 
 ---
 
@@ -275,14 +289,15 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 - e-campus 로그인만으로는 이름·학과가 안 나와서 `sugangh` SSO SSV(`findAppcsLogin`, `findStunoInfo`)를 씀.
 - 로그인 줄에 `이름 (학번) · 학과` 를 표시.
-- `session.json` 에 `studentName`, `deptName`, `deptCd` 를 같이 저장. 비밀번호는 저장하지 않음.
+- `session.json` 에 `studentName`, `deptName`, `deptCd` 를 같이 저장. 비밀번호는 `session.json` 에 넣지 않음.
+- 로그인 계정은 `login.json`. 학번·비밀번호가 둘 다 있으면 입력을 건너뛰고, 하나라도 비면 직접 입력.
 
 ### 저장소 · 빌드
 
 - 예전 `project/` 안 파일을 저장소 루트로 옮김.
 - 외부 라이브러리 폴더 이름: `lib/vendor` → `lib/c_modules`.
 - `Makefile`, `CMakeLists.txt` 를 지움. 빌드는 `build.bat` 만.
-- `./db` 는 실행 때 없으면 만듦. Git에는 `db/testdata` 만 두고, 실제 `session.json` / `result.json` 은 올리지 않음.
+- `./db` 는 실행 때 없으면 만듦. Git에는 `db/testdata` 만 두고, 실제 `session.json` / `result.json` / `login.json` 은 올리지 않음.
 
 ---
 

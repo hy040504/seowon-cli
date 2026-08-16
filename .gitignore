@@ -11,9 +11,11 @@
 .vs/
 .idea/
 config.json
+login.json
 db/session.json
 db/result.json
 db/_test_result.json
+db/_test_login.json
 session.json
 result.json
 *.user

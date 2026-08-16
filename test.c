@@ -254,6 +254,26 @@ int sw_run_tests(const char *testdata_dir)
         free(one.lessons);
     }
 
+    // login.json 왕복
+    {
+        SwLoginFile lf, back;       // 저장·읽기
+        char tmp[SW_STR_PATH];      // 임시 파일
+        sw_login_file_default(&lf);
+        sw_str_copy(tmp, sizeof(tmp), "db/_test_login.json");
+        sw_str_copy(lf.path, sizeof(lf.path), tmp);
+        sw_str_copy(lf.student_id, sizeof(lf.student_id), "20241234");
+        sw_str_copy(lf.password, sizeof(lf.password), "secret");
+        sw_mkdir_p("db");
+        expect_true(sw_login_file_save(&lf) == SW_OK, "login save");
+        expect_true(sw_login_file_load(tmp, &back) == SW_OK, "login load");
+        expect_streq(back.student_id, "20241234", "login studentId");
+        expect_streq(back.password, "secret", "login password");
+        expect_true(sw_login_file_complete(&back), "login complete");
+        sw_login_file_wipe(&back);
+        expect_true(!sw_login_file_complete(&back), "login wipe");
+        sw_login_file_wipe(&lf);
+    }
+
     printf("\n결과: %d 통과, %d 실패\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

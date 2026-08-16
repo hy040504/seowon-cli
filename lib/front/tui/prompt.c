@@ -246,6 +246,17 @@ static void doConfig(SwApp *app)
     printf("  saveSession   : %s\n", app->cfg.save_session ? "true" : "false");
     printf("  saveResult    : %s\n", app->cfg.save_result ? "true" : "false");
     printf("  dataDir       : %s\n", app->cfg.data_dir);
+    {
+        SwLoginFile lf;             // login.json 상태만 표시
+        if (sw_login_file_load(SW_LOGIN_FILE, &lf) == SW_OK) {
+            printf("  login.json    : 학번 %s, 비밀번호 %s\n",
+                   lf.student_id[0] ? lf.student_id : "(비어 있음)",
+                   lf.password[0] ? "있음" : "(비어 있음)");
+        } else {
+            printf("  login.json    : (없음)\n");
+        }
+        sw_login_file_wipe(&lf);
+    }
     printf("  1) 세션 저장 켜기/끄기\n");
     printf("  2) 결과 저장 켜기/끄기\n");
     printf("  3) 저장 폴더 바꾸기\n");

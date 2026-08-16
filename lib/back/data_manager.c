@@ -117,6 +117,11 @@ int sw_app_boot(SwApp *app)
     }
     sw_mkdir_p(app->cfg.data_dir);
 
+    // login.json 이 없으면 빈 학번·비밀번호로 만든다
+    if (sw_login_file_ensure(SW_LOGIN_FILE) != SW_OK) {
+        say_warn(app, "login.json 을 만들지 못했습니다.");
+    }
+
     // 설정에서 주소가 바뀌었을 수 있으니 HTTP 세션을 다시 연다
     if (app->http.session == NULL && !app->demo) {
         sw_http_free(&app->http);
@@ -171,18 +176,30 @@ int sw_app_ensure_auth(SwApp *app)
 // 학번·비밀번호 로그인 (RETURN: SW_OK)
 int sw_app_login_interactive(SwApp *app)
 {
+    SwLoginFile lf;                 // login.json
     char sid[SW_STR_ID];            // 학번
-    char pw[128];                   // 비밀번호
+    char pw[SW_STR_PW];             // 비밀번호
     char prompt[128];               // 학번 입력 안내
     int rc;                         // 로그인 결과
 
     if (app->demo) return sw_app_login_with(app, "", "");
 
+    // 학번·비밀번호가 둘 다 있으면 파일 값으로 바로 로그인한다
+    sw_login_file_load(SW_LOGIN_FILE, &lf);
+    if (sw_login_file_complete(&lf)) {
+        say_info(app, "login.json 의 학번·비밀번호로 로그인합니다.");
+        rc = sw_app_login_with(app, lf.student_id, lf.password);
+        sw_login_file_wipe(&lf);
+        return rc;
+    }
+    sw_login_file_wipe(&lf);
+    say_info(app, "login.json 에 학번 또는 비밀번호가 없어 직접 입력합니다.");
+
     snprintf(prompt, sizeof(prompt), "학번%s%s%s: ", app->cfg.last_student_id[0] ? " [" : "",
              app->cfg.last_student_id, app->cfg.last_student_id[0] ? "]" : "");
     sw_read_line(prompt, sid, sizeof(sid));
     if (!sid[0]) sw_str_copy(sid, sizeof(sid), app->cfg.last_student_id);
-    sw_read_password("비밀번호 (파일에 저장하지 않음): ", pw, sizeof(pw));
+    sw_read_password("비밀번호: ", pw, sizeof(pw));
     rc = sw_app_login_with(app, sid, pw);
 #ifdef _WIN32
     SecureZeroMemory(pw, sizeof(pw));
