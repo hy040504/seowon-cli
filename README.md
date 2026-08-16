@@ -105,8 +105,6 @@ build.bat
 build.bat test
 ```
 
-`Makefile` / `CMakeLists.txt` 도 `seowon-tui` 를 만듭니다.
-
 이 브랜치(`tui`)는 터미널 UI만 있습니다. PyQt GUI 는 `gui` 브랜치, 둘 다는 `main` 입니다.
 
 ### 실행
