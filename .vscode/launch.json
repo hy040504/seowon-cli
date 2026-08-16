@@ -24,18 +24,6 @@
       "externalConsole": true,
       "MIMode": "gdb",
       "preLaunchTask": "build seowon-cli"
-    },
-    {
-      "name": "GUI",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/seowon-gui.exe",
-      "args": ["--demo"],
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "preLaunchTask": "build seowon-gui"
     }
   ]
 }

@@ -1,1 +1,0 @@
-# seowon-cli PyQt GUI

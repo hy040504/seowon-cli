@@ -17,13 +17,6 @@
       "dependsOn": "build seowon-cli"
     },
     {
-      "label": "build seowon-gui",
-      "type": "shell",
-      "command": "${workspaceFolder}/build.bat",
-      "args": ["gui"],
-      "problemMatcher": ["$gcc"]
-    },
-    {
       "label": "demo seowon-cli",
       "type": "shell",
       "command": "${workspaceFolder}/seowon-tui.exe",

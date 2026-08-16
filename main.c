@@ -23,8 +23,7 @@ static void usage(void)
     printf("  seowon-tui            대화형 TUI 메뉴\n");
     printf("  seowon-tui --demo     testdata 로 오프라인 시연\n");
     printf("  seowon-tui --test     파서·필터·암호 단위 테스트\n");
-    printf("  seowon-tui --rpc ...  GUI 가 부르는 JSON 명령\n");
-    printf("  seowon-gui            PyQt GUI (별도 실행 파일)\n");
+    printf("  seowon-tui --rpc ...  JSON 명령\n");
     printf("  seowon-tui --help     이 도움말\n\n");
     printf("저장 파일 (JSON만):\n");
     printf("  config.json           마지막 학번, 저장 옵션, dataDir\n");

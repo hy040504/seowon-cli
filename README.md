@@ -101,19 +101,13 @@ winget install BrechtSanders.WinLibs.POSIX.UCRT
 이 폴더를 VS Code로 연 뒤 `Ctrl+Shift+B`, 또는:
 
 ```bat
-build.bat              TUI 실행 파일 (seowon-tui.exe)
-build.bat gui          GUI 실행 파일 (seowon-gui.exe)
-build.bat all          둘 다
-build.bat test         TUI 단위 테스트
+build.bat
+build.bat test
 ```
 
-GUI 는 Python 3 + PyQt6 가 필요합니다.
+`Makefile` / `CMakeLists.txt` 도 `seowon-tui` 를 만듭니다.
 
-```bat
-pip install -r requirements.txt
-```
-
-`Makefile` / `CMakeLists.txt` 도 `seowon-tui` · `seowon-gui` 두 대상을 만듭니다.
+이 브랜치(`tui`)는 터미널 UI만 있습니다. PyQt GUI 는 `gui` 브랜치, 둘 다는 `main` 입니다.
 
 ### 실행
 
@@ -121,13 +115,9 @@ pip install -r requirements.txt
 seowon-tui.exe              터미널 메뉴 (실제 e-campus)
 seowon-tui.exe --demo       testdata 로 오프라인 시연
 seowon-tui.exe --test       파서 · 필터 · 암호 단위 테스트
-seowon-gui.exe              PyQt 창
-seowon-gui.exe --demo       GUI 를 데모 체크로 시작
-python lib\front\gui\main.py
 ```
 
-데모는 네트워크 없이 메뉴와 표를 보여 줄 때 씁니다.  
-실제 로그인을 GUI 에서 쓰려면 먼저 `build.bat`(TUI) 가 되어 있어야 합니다.
+데모는 네트워크 없이 메뉴와 표를 보여 줄 때 씁니다.
 
 ---
 
@@ -137,28 +127,19 @@ python lib\front\gui\main.py
 
 모듈은 `.h` / `.c` 한 쌍입니다. **`.h`는 다른 파일이 불러도 되는 API(함수·상수·자료형)**, **`.c`는 그 구현**입니다. 파일 안에서만 쓰는 함수는 `.c`에 `static` 으로 둡니다.
 
-화면은 `lib/front/tui`(C 터미널)와 `lib/front/gui`(PyQt)로 나뉩니다. 조회·로그인·JSON 은 `lib/back` 을 같이 씁니다. GUI 는 `seowon-tui.exe --rpc` 로 그 백엔드를 부릅니다.
+화면은 `lib/front/tui` (C 터미널)입니다. 조회·로그인·JSON 은 `lib/back` 입니다.
 
 ```text
 seowon-cli
 ├─ main.c                 TUI 진입점
-├─ gui_main.c             GUI 실행 파일 (python 으로 main.py 실행)
 ├─ test.c
 ├─ lib
-│  ├─ front
-│  │  ├─ tui              C 터미널 UI
-│  │  │  ├─ ui.c / ui.h
-│  │  │  └─ prompt.c / prompt.h
-│  │  └─ gui              PyQt 화면
-│  │     ├─ main.py
-│  │     ├─ window.py
-│  │     └─ backend.py
+│  ├─ front/tui           C 터미널 UI
 │  ├─ back                조회 · 파일 · 패킷
 │  ├─ c_modules           외부 라이브러리 (cJSON, winhttp_min)
 │  ├─ seowon.h
 │  └─ util.c
 ├─ db/testdata
-├─ requirements.txt       PyQt6
 ├─ build.bat
 └─ README.md
 ```
