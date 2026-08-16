@@ -1,39 +1,34 @@
-# seowon-cli 루트에서 빌드
+# seowon-cli GUI
 
 CC      ?= gcc
 CFLAGS  ?= -std=c11 -Wall -Wextra -O2
-INCLUDES = -Ilib -Ilib/front -Ilib/front/tui -Ilib/back -Ilib/c_modules
+INCLUDES = -Ilib -Ilib/front -Ilib/back -Ilib/c_modules
 DEFS     = -D_CRT_SECURE_NO_WARNINGS -DCJSON_HIDE_SYMBOLS
 LIBS     = -lwinhttp
-SRC      = main.c test.c \
+CORE_SRC = main.c test.c \
            lib/util.c \
-           lib/front/tui/ui.c lib/front/tui/prompt.c \
            lib/back/fs.c lib/back/http.c lib/back/crypto.c \
            lib/back/parse.c lib/back/data_manager.c \
-           lib/back/ssv.c lib/back/sugang.c \
+           lib/back/ssv.c lib/back/sugang.c lib/back/ui_notify.c \
            lib/c_modules/cJSON.c
-OUT      = seowon-tui.exe
-
+CORE_OUT = seowon-core.exe
 GUI_OUT  = seowon-gui.exe
 
-.PHONY: all test demo clean gui
+.PHONY: all test gui clean
 
-all: $(OUT) $(GUI_OUT)
+all: $(CORE_OUT) $(GUI_OUT)
 
-$(OUT): $(SRC) lib/seowon.h
-	$(CC) $(CFLAGS) $(INCLUDES) $(DEFS) -o $(OUT) $(SRC) $(LIBS)
-
-test: $(OUT)
-	./$(OUT) --test
-
-demo: $(OUT)
-	./$(OUT) --demo
-
-gui: $(GUI_OUT)
+$(CORE_OUT): $(CORE_SRC) lib/seowon.h
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFS) -o $(CORE_OUT) $(CORE_SRC) $(LIBS)
 
 $(GUI_OUT): gui_main.c
 	$(CC) $(CFLAGS) -o $(GUI_OUT) gui_main.c -luser32
 
+test: $(CORE_OUT)
+	./$(CORE_OUT) --test
+
+gui: $(GUI_OUT)
+
 clean:
-	-del /Q $(OUT) $(GUI_OUT) 2>nul
-	-rm -f $(OUT) $(GUI_OUT)
+	-del /Q $(CORE_OUT) $(GUI_OUT) 2>nul
+	-rm -f $(CORE_OUT) $(GUI_OUT)

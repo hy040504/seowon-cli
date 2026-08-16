@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def find_tui_exe() -> Path | None:
-    for name in ("seowon-tui.exe", "seowon-cli.exe"):
+    for name in ("seowon-core.exe", "seowon-tui.exe", "seowon-cli.exe"):
         p = ROOT / name
         if p.is_file():
             return p
@@ -117,7 +117,7 @@ class Backend:
             }
 
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다. 먼저 build.bat tui 를 실행하세요.")
+            raise BackendError("seowon-core.exe 가 없습니다. 먼저 build.bat 를 실행하세요.")
         env = os.environ.copy()
         env["SEOWON_ID"] = student_id
         env["SEOWON_PW"] = password
@@ -144,7 +144,7 @@ class Backend:
             return self.load_demo_result()
         exe = find_tui_exe()
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다. 먼저 build.bat tui 를 실행하세요.")
+            raise BackendError("seowon-core.exe 가 없습니다. 먼저 build.bat 를 실행하세요.")
         args = ["--rpc", "fetch"]
         out = self._run_raw(exe, args)
         data = json.loads(out)
@@ -179,7 +179,7 @@ class Backend:
             return "(데모 상세 파일이 없습니다)"
         exe = find_tui_exe()
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다.")
+            raise BackendError("seowon-core.exe 가 없습니다. 먼저 build.bat 를 실행하세요.")
         out = self._run(exe, ["--rpc", "detail", str(course_i), str(assign_i)])
         if not out.get("ok"):
             raise BackendError(out.get("error") or "상세 조회 실패")
@@ -195,7 +195,7 @@ class Backend:
             return 72
         exe = find_tui_exe()
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다.")
+            raise BackendError("seowon-core.exe 가 없습니다. 먼저 build.bat 를 실행하세요.")
         out = self._run(exe, ["--rpc", "progress", str(course_i), str(lesson_i)])
         if not out.get("ok"):
             raise BackendError(out.get("error") or "학습률 조회 실패")

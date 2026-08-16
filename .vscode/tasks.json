@@ -11,7 +11,7 @@
     {
       "label": "test seowon-cli",
       "type": "shell",
-      "command": "${workspaceFolder}/seowon-tui.exe",
+      "command": "${workspaceFolder}/seowon-core.exe",
       "args": ["--test"],
       "group": "test",
       "dependsOn": "build seowon-cli"
@@ -26,7 +26,7 @@
     {
       "label": "demo seowon-cli",
       "type": "shell",
-      "command": "${workspaceFolder}/seowon-tui.exe",
+      "command": "${workspaceFolder}/seowon-core.exe",
       "args": ["--demo"],
       "dependsOn": "build seowon-cli"
     }

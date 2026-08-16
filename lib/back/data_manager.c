@@ -5,7 +5,7 @@
 #include "parse.h"
 #include "fs.h"
 #include "sugang.h"
-#include "../front/tui/ui.h"
+#include "ui_notify.h"
 #include "../util.h"
 
 // 이 파일 안에서만 쓰는 조회 도우미

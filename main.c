@@ -4,8 +4,6 @@
 #include <string.h>
 
 // 커스텀 라이브러리
-#include "./lib/front/tui/ui.h"
-#include "./lib/front/tui/prompt.h"
 #include "./lib/util.h"
 #include "./lib/back/fs.h"
 #include "./lib/back/data_manager.h"
@@ -20,12 +18,10 @@ static void usage(void)
 {
     printf("seowon-cli %s — 서원대 e-campus 과제·이러닝 현황 (C CLI)\n\n", SW_VERSION);
     printf("사용법:\n");
-    printf("  seowon-tui            대화형 TUI 메뉴\n");
-    printf("  seowon-tui --demo     testdata 로 오프라인 시연\n");
-    printf("  seowon-tui --test     파서·필터·암호 단위 테스트\n");
-    printf("  seowon-tui --rpc ...  GUI 가 부르는 JSON 명령\n");
-    printf("  seowon-gui            PyQt GUI (별도 실행 파일)\n");
-    printf("  seowon-tui --help     이 도움말\n\n");
+    printf("  seowon-gui            PyQt 창\n");
+    printf("  seowon-core --demo --rpc login|fetch|...\n");
+    printf("  seowon-core --test    단위 테스트\n");
+    printf("  seowon-core --help    이 도움말\n\n");
     printf("저장 파일 (JSON만):\n");
     printf("  config.json           마지막 학번, 저장 옵션, dataDir\n");
     printf("  db/session.json       쿠키 (비밀번호 없음)\n");
@@ -246,15 +242,9 @@ int main(int argc, char **argv)
         return rc;
     }
 
-    // 스플래시 → 설정·세션 → 메뉴
-    sw_app_init(&app, dir);
-    app.demo = demo;
-    sw_term_clear();
-    sw_ui_banner();
-    sw_load_spin(150, "");
-    if (demo) sw_ui_warn("데모 모드입니다. e-campus 에 접속하지 않고 testdata 를 씁니다.");
-    sw_app_boot(&app);
-    sw_app_run_menu(&app);
-    sw_app_free(&app);
+    printf("이 브랜치는 GUI 전용입니다. seowon-gui.exe 를 실행하세요.\n");
+    printf("백엔드 JSON: seowon-core.exe --rpc login|fetch|load\n");
+    (void)demo;
+    (void)app;
     return 0;
 }
