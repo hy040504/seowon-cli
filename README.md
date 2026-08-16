@@ -123,6 +123,8 @@ seowon-cli.exe --test       파서 · 필터 · 암호 단위 테스트
 
 저장소 루트가 작업 폴더입니다. `lib/front` · `lib/back` 배치는 [SeowonProject](https://github.com/hy040504/SeowonProject/tree/master/project) 를 따릅니다.
 
+모듈은 `.h` / `.c` 한 쌍입니다. **`.h`는 다른 파일이 불러도 되는 API(함수·상수·자료형)**, **`.c`는 그 구현**입니다. 파일 안에서만 쓰는 함수는 `.c`에 `static` 으로 둡니다.
+
 ```text
 seowon-cli
 ├─ main.c                 진입점
