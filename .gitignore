@@ -20,3 +20,4 @@ result.json
 __pycache__/
 *.pyc
 .venv/
+seowon-gui.log
