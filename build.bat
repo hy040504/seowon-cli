@@ -15,10 +15,10 @@ goto :gui
 set SRC=main.c test.c lib\util.c lib\back\fs.c lib\back\http.c lib\back\crypto.c lib\back\parse.c lib\back\data_manager.c lib\back\ssv.c lib\back\sugang.c lib\back\ui_notify.c lib\c_modules\cJSON.c
 set INC=-Ilib -Ilib/front -Ilib/back -Ilib/c_modules
 set DEF=-D_CRT_SECURE_NO_WARNINGS -DCJSON_HIDE_SYMBOLS
-set OUT=seowon-core.exe
+set OUT=seowon-tui.exe
 call :compile
 if errorlevel 1 exit /b 1
-if /I "%1"=="test" seowon-core.exe --test
+if /I "%1"=="test" seowon-tui.exe --test
 goto :eof
 
 :gui

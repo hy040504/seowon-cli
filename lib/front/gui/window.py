@@ -5,12 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from PyQt6.QtCore import QEvent, QObject, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtCore import QEvent, QObject, QSettings, Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
-    QCheckBox,
     QComboBox,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -30,136 +29,24 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from backend import (
-    Backend,
-    BackendError,
-    ensure_login_file,
-    load_login_file,
-    login_file_complete,
-)
-from style import BLUE, QSS, TEXT, TEXT_3
+from backend import Backend, ensure_login_file, load_login_file, login_file_complete
+from style import CURRENT, DARK, LIGHT, Theme, qss, set_current
+from widgets import FnThread, LoadingOverlay, SuccessMark, TossCheck, TossSwitch
 
 
 NAV = ["로그인", "과제", "이러닝", "현황", "설정"]
 
 
-class TossSpinner(QWidget):
-    """토스처럼 끝이 둥근 파란 원호가 돌아 간다."""
-
-    def __init__(self, parent: QWidget | None = None, size: int = 40) -> None:
-        super().__init__(parent)
-        self._angle = 0
-        self.setFixedSize(size, size)
-        self._timer = QTimer(self)
-        self._timer.setInterval(16)
-        self._timer.timeout.connect(self._tick)
-
-    def start(self) -> None:
-        if not self._timer.isActive():
-            self._timer.start()
-
-    def stop(self) -> None:
-        self._timer.stop()
-
-    def _tick(self) -> None:
-        self._angle = (self._angle + 8) % 360
-        self.update()
-
-    def paintEvent(self, event) -> None:  # noqa: N802
-        del event
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        track = QPen(QColor("#E8F3FF"), 3.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-        painter.setPen(track)
-        m = 4
-        painter.drawArc(m, m, self.width() - 2 * m, self.height() - 2 * m, 0, 360 * 16)
-        arc = QPen(QColor(BLUE), 3.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-        painter.setPen(arc)
-        painter.drawArc(m, m, self.width() - 2 * m, self.height() - 2 * m, -self._angle * 16, 270 * 16)
-
-
-class LoadingOverlay(QWidget):
-    """반투명 막 + 가운데 카드. 네트워크 작업 중 화면이 멈춘 것처럼 보이지 않게 한다."""
-
-    def __init__(self, parent: QWidget) -> None:
-        super().__init__(parent)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("background: rgba(25, 31, 40, 72);")
-        self.hide()
-
-        card = QFrame()
-        card.setObjectName("loadCard")
-        card.setFixedWidth(280)
-        shadow = QGraphicsDropShadowEffect(card)
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(25, 31, 40, 50))
-        card.setGraphicsEffect(shadow)
-
-        self.spin = TossSpinner(card, 42)
-        self.lab = QLabel("잠시만요")
-        self.lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        font = QFont(self.lab.font())
-        font.setPointSize(14)
-        font.setBold(True)
-        self.lab.setFont(font)
-        self.lab.setStyleSheet(f"color: {TEXT}; background: transparent;")
-        sub = QLabel("화면이 멈추지 않았어요")
-        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        sub.setStyleSheet(f"color: {TEXT_3}; background: transparent; font-size: 12px;")
-
-        inner = QVBoxLayout(card)
-        inner.setContentsMargins(28, 28, 28, 24)
-        inner.setSpacing(12)
-        inner.addWidget(self.spin, 0, Qt.AlignmentFlag.AlignHCenter)
-        inner.addWidget(self.lab)
-        inner.addWidget(sub)
-
-        lay = QVBoxLayout(self)
-        lay.addStretch(1)
-        row = QHBoxLayout()
-        row.addStretch(1)
-        row.addWidget(card)
-        row.addStretch(1)
-        lay.addLayout(row)
-        lay.addStretch(1)
-
-    def show_msg(self, text: str) -> None:
-        self.lab.setText(text)
-        self.spin.start()
-        self.show()
-        self.raise_()
-
-    def hide_msg(self) -> None:
-        self.spin.stop()
-        self.hide()
-
-
-class FnThread(QThread):
-    ok = pyqtSignal(object)
-    err = pyqtSignal(str)
-
-    def __init__(self, fn: Callable[[], Any]) -> None:
-        super().__init__()
-        self._fn = fn
-
-    def run(self) -> None:
-        try:
-            self.ok.emit(self._fn())
-        except BackendError as e:
-            self.err.emit(str(e))
-        except Exception as e:  # noqa: BLE001
-            self.err.emit(str(e))
-
-
 class MainWindow(QMainWindow):
+    """왼쪽 내비 + 오른쪽 페이지. 조회는 백그라운드 스레드에서 돌린다."""
+
     def __init__(self) -> None:
         super().__init__()
-        self.backend = Backend()
-        self._th: FnThread | None = None
+        self.backend = Backend()                    # RPC 조회
+        self._th: FnThread | None = None            # 지금 돌아가는 작업
+        self._cards: list[QFrame] = []              # 그림자 다시 칠할 카드
         self.setWindowTitle("e-campus")
         self.resize(1120, 740)
-        self.setStyleSheet(QSS)
         ensure_login_file()
 
         root = QWidget()
@@ -184,8 +71,15 @@ class MainWindow(QMainWindow):
         root.installEventFilter(self)
         self._fill_login_from_file()
         self._apply_profile_chip()
+        settings = QSettings("seowon-cli", "e-campus")
+        dark = bool(settings.value("darkMode", False, type=bool))  # 지난 테마
+        self.theme_switch.blockSignals(True)
+        self.theme_switch.setChecked(dark)
+        self.theme_switch.blockSignals(False)
+        self.apply_theme(DARK if dark else LIGHT)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        """창 크기가 바뀌면 로딩 막을 다시 맞춘다."""
         if obj is self.centralWidget() and event.type() == QEvent.Type.Resize:
             self.overlay.setGeometry(self.centralWidget().rect())
         return super().eventFilter(obj, event)
@@ -196,22 +90,45 @@ class MainWindow(QMainWindow):
             self.overlay.setGeometry(self.centralWidget().rect())
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        """닫을 때 돌아가는 RPC 가 있으면 잠시 기다린다."""
         if self._th is not None and self._th.isRunning():
             self._th.wait(4000)
         super().closeEvent(event)
 
     def _card(self) -> QFrame:
+        """흰(또는 다크) 둥근 카드."""
         frame = QFrame()
         frame.setObjectName("card")
         frame.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         shadow = QGraphicsDropShadowEffect(frame)
         shadow.setBlurRadius(28)
         shadow.setOffset(0, 6)
-        shadow.setColor(QColor(25, 31, 40, 20))
+        shadow.setColor(QColor(0, 0, 0, CURRENT.shadow_a))
         frame.setGraphicsEffect(shadow)
+        self._cards.append(frame)
         return frame
 
+    def apply_theme(self, theme: Theme) -> None:
+        """라이트/다크를 창 전체에 입히고 설정을 기억한다."""
+        set_current(theme)
+        self.setStyleSheet(qss(theme))
+        self.overlay.apply_theme(theme)
+        for card in self._cards:
+            effect = card.graphicsEffect()
+            if isinstance(effect, QGraphicsDropShadowEffect):
+                effect.setColor(QColor(0, 0, 0, theme.shadow_a))
+        self.theme_caption.setText(
+            "어두운 바탕과 밝은 글자로 봅니다." if theme is DARK else "밝은 카드 화면으로 봅니다."
+        )
+        QSettings("seowon-cli", "e-campus").setValue("darkMode", theme is DARK)
+        self.update()
+
+    def _on_theme_toggled(self, dark: bool) -> None:
+        """설정 스위치를 켤 때 다크, 끌 때 라이트."""
+        self.apply_theme(DARK if dark else LIGHT)
+
     def _build_sidebar(self) -> QWidget:
+        """왼쪽 메뉴와 아래 프로필 칩."""
         side = QWidget()
         side.setObjectName("sidebar")
         side.setFixedWidth(236)
@@ -267,6 +184,7 @@ class MainWindow(QMainWindow):
         return side
 
     def _page(self, title: str, caption: str) -> tuple[QWidget, QVBoxLayout]:
+        """과제·이러닝·현황·설정 공통 머리글."""
         w = QWidget()
         w.setObjectName("canvas")
         v = QVBoxLayout(w)
@@ -285,6 +203,7 @@ class MainWindow(QMainWindow):
         return w, v
 
     def _style_table(self, table: QTableWidget) -> None:
+        """표는 줄 선택만 하고 칸은 고치지 못하게 한다."""
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -299,6 +218,7 @@ class MainWindow(QMainWindow):
         hdr.setStretchLastSection(True)
 
     def _build_login(self) -> QWidget:
+        """로그인 입력 카드와 성공 카드를 겹쳐 둔다."""
         w = QWidget()
         w.setObjectName("canvas")
         outer = QVBoxLayout(w)
@@ -307,8 +227,19 @@ class MainWindow(QMainWindow):
 
         row = QHBoxLayout()
         row.addStretch(1)
+        self.login_stack = QStackedWidget()
+        self.login_stack.setFixedWidth(420)
+        self.login_stack.addWidget(self._build_login_form())
+        self.login_stack.addWidget(self._build_login_success())
+        row.addWidget(self.login_stack)
+        row.addStretch(1)
+        outer.addLayout(row)
+        outer.addStretch(2)
+        return w
+
+    def _build_login_form(self) -> QWidget:
+        """학번·비밀번호 입력 카드."""
         card = self._card()
-        card.setFixedWidth(420)
         inner = QVBoxLayout(card)
         inner.setContentsMargins(28, 28, 28, 24)
         inner.setSpacing(10)
@@ -337,7 +268,7 @@ class MainWindow(QMainWindow):
         inner.addWidget(lab_pw)
         inner.addWidget(self.pw_edit)
 
-        self.demo_chk = QCheckBox("데모 모드  ·  네트워크 없이 샘플 보기")
+        self.demo_chk = TossCheck("데모 모드  ·  네트워크 없이 샘플 보기")
         self.demo_chk.setChecked(True)
         inner.addSpacing(4)
         inner.addWidget(self.demo_chk)
@@ -367,14 +298,68 @@ class MainWindow(QMainWindow):
         notice.setObjectName("hint")
         notice.setWordWrap(True)
         inner.addWidget(notice)
+        return card
 
-        row.addWidget(card)
-        row.addStretch(1)
-        outer.addLayout(row)
-        outer.addStretch(2)
-        return w
+    def _build_login_success(self) -> QWidget:
+        """로그인 성공 뒤 바꾸는 Successful! 카드."""
+        card = self._card()
+        inner = QVBoxLayout(card)
+        inner.setContentsMargins(32, 36, 32, 28)
+        inner.setSpacing(8)
+        self.ok_mark = SuccessMark(size=76)
+        title = QLabel("Successful!")
+        title.setObjectName("successTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub = QLabel("로그인했어요")
+        sub.setObjectName("caption")
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ok_who = QLabel("")
+        self.ok_who.setObjectName("hello")
+        self.ok_who.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ok_who.setWordWrap(True)
+        self.ok_sub = QLabel("")
+        self.ok_sub.setObjectName("caption")
+        self.ok_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ok_sub.setWordWrap(True)
+        go = QPushButton("과제 보러 가기")
+        go.setObjectName("primary")
+        go.setCursor(Qt.CursorShape.PointingHandCursor)
+        go.clicked.connect(lambda: self._goto(1))
+        again = QPushButton("다시 로그인")
+        again.setObjectName("ghost")
+        again.setCursor(Qt.CursorShape.PointingHandCursor)
+        again.clicked.connect(self._show_login_form)
+        inner.addWidget(self.ok_mark, 0, Qt.AlignmentFlag.AlignHCenter)
+        inner.addSpacing(8)
+        inner.addWidget(title)
+        inner.addWidget(sub)
+        inner.addSpacing(10)
+        inner.addWidget(self.ok_who)
+        inner.addWidget(self.ok_sub)
+        inner.addSpacing(18)
+        inner.addWidget(go)
+        inner.addWidget(again)
+        return card
+
+    def _goto(self, index: int) -> None:
+        """왼쪽 메뉴와 페이지를 같이 옮긴다."""
+        if 0 <= index < len(self.nav_btns):
+            self.nav_btns[index].setChecked(True)
+        self.stack.setCurrentIndex(index)
+
+    def _show_login_form(self) -> None:
+        """성공 카드에서 입력 카드로 돌아간다."""
+        self.login_stack.setCurrentIndex(0)
+
+    def _show_login_success(self, who: str, subtitle: str) -> None:
+        """알림창 대신 성공 카드로 화면을 바꾼다."""
+        self.ok_who.setText(who)
+        self.ok_sub.setText(subtitle)
+        self.login_stack.setCurrentIndex(1)
+        self.ok_mark.play()
 
     def _build_assignments(self) -> QWidget:
+        """과제 목록·상세."""
         w, v = self._page("과제", "기간과 제출 상태를 한 번에 봅니다.")
         bar = QHBoxLayout()
         self.asg_filter = QComboBox()
@@ -414,6 +399,7 @@ class MainWindow(QMainWindow):
         return w
 
     def _build_lessons(self) -> QWidget:
+        """이러닝 차시 목록."""
         w, v = self._page("이러닝", "차시 출결과 들어야 할 강의를 모읍니다.")
         bar = QHBoxLayout()
         self.les_filter = QComboBox()
@@ -442,6 +428,7 @@ class MainWindow(QMainWindow):
         return w
 
     def _build_summary(self) -> QWidget:
+        """과목별 미제출·미완료 한 표."""
         w, v = self._page("현황", "과목별 미제출 과제와 미완료 이러닝을 한 표로 봅니다.")
         btn = QPushButton("과목별 모아 보기")
         btn.setObjectName("primary")
@@ -461,7 +448,28 @@ class MainWindow(QMainWindow):
         return w
 
     def _build_settings(self) -> QWidget:
-        w, v = self._page("설정", "조회 결과는 result.json, 로그인 계정은 login.json 입니다.")
+        """다크 모드 스위치와 결과 저장."""
+        w, v = self._page("설정", "화면 테마와 조회 파일을 여기서 바꿉니다.")
+
+        theme_card = self._card()
+        tl = QVBoxLayout(theme_card)
+        tl.setContentsMargins(22, 18, 22, 18)
+        tl.setSpacing(6)
+        row_t = QHBoxLayout()
+        lab = QLabel("다크 모드")
+        lab.setObjectName("hello")
+        self.theme_switch = TossSwitch()
+        self.theme_switch.toggled.connect(self._on_theme_toggled)
+        row_t.addWidget(lab)
+        row_t.addStretch(1)
+        row_t.addWidget(self.theme_switch)
+        self.theme_caption = QLabel("밝은 카드 화면으로 봅니다.")
+        self.theme_caption.setObjectName("caption")
+        self.theme_caption.setWordWrap(True)
+        tl.addLayout(row_t)
+        tl.addWidget(self.theme_caption)
+        v.addWidget(theme_card)
+
         card = self._card()
         cl = QVBoxLayout(card)
         cl.setContentsMargins(22, 20, 22, 20)
@@ -492,6 +500,7 @@ class MainWindow(QMainWindow):
         return w
 
     def _fill_login_from_file(self) -> None:
+        """login.json 값을 입력칸에 미리 넣는다."""
         sid, pw = load_login_file()
         if sid:
             self.id_edit.setText(sid)
@@ -505,6 +514,7 @@ class MainWindow(QMainWindow):
             self.login_file_hint.setText("login.json 이 비어 있습니다. 학번과 비밀번호를 입력하세요.")
 
     def _apply_profile_chip(self) -> None:
+        """왼쪽 아래 이름 칩을 고친다."""
         if not self.backend.logged_in:
             self.chip_name.setText("로그인 전")
             self.chip_sub.setText("세션 없음")
@@ -518,6 +528,7 @@ class MainWindow(QMainWindow):
         self.avatar.setText(who[0])
 
     def _alert(self, msg: str, err: bool = False) -> None:
+        """오류만 알림창으로 띄운다. 로그인 성공은 카드를 쓴다."""
         box = QMessageBox(self)
         box.setWindowTitle("e-campus")
         box.setText(msg)
@@ -525,6 +536,7 @@ class MainWindow(QMainWindow):
         box.exec()
 
     def _busy(self, message: str, fn: Callable[[], Any], done: Callable[[Any], None]) -> None:
+        """스피너를 띄운 채 fn 을 백그라운드에서 돌린다."""
         if self._th is not None and self._th.isRunning():
             return
         self.overlay.setGeometry(self.centralWidget().rect())
@@ -537,12 +549,14 @@ class MainWindow(QMainWindow):
         th.start()
 
     def _on_thread_finished(self) -> None:
+        """끝난 스레드 손잡이를 비운다."""
         th = self._th
         self._th = None
         if th is not None:
             th.deleteLater()
 
     def _busy_ok(self, result: Any, done: Callable[[Any], None]) -> None:
+        """작업이 끝나면 스피너를 내리고 화면을 갱신한다."""
         self.overlay.hide_msg()
         try:
             done(result)
@@ -550,10 +564,12 @@ class MainWindow(QMainWindow):
             self._alert(str(e), True)
 
     def _busy_err(self, msg: str) -> None:
+        """작업이 실패하면 스피너를 내리고 이유를 보여 준다."""
         self.overlay.hide_msg()
         self._alert(msg, True)
 
     def _ensure_data(self, then: Callable[[], None], message: str = "불러오는 중") -> None:
+        """아직 조회 결과가 없으면 먼저 fetch 한 뒤 then 을 부른다."""
         if self.backend.data.get("courses"):
             then()
             return
@@ -564,6 +580,7 @@ class MainWindow(QMainWindow):
         self._busy(message, work, lambda _: then())
 
     def on_login(self) -> None:
+        """로그인 버튼. exe 는 콘솔 창 없이 백그라운드에서 돈다."""
         sid = self.id_edit.text().strip()
         pw = self.pw_edit.text()
         demo = self.demo_chk.isChecked()
@@ -582,14 +599,16 @@ class MainWindow(QMainWindow):
         self._busy("로그인하는 중", work, self._after_login)
 
     def _after_login(self, _out: Any) -> None:
+        """로그인 성공 카드로 바꾼다."""
         self.pw_edit.clear()
         who = self.backend.profile_label()
-        tag = "  ·  데모" if self.backend.demo else ""
-        self.profile.setText(who + tag)
+        tag = "데모 모드로 들어왔어요" if self.backend.demo else "과제·이러닝 메뉴에서 조회하세요"
+        self.profile.setText(who)
         self._apply_profile_chip()
-        self._alert(f"로그인했습니다.\n{who}\n과제·이러닝 메뉴에서 조회하세요.")
+        self._show_login_success(who, tag)
 
     def on_session(self) -> None:
+        """저장된 세션으로 접속한다."""
         if self.demo_chk.isChecked():
             self.on_login()
             return
@@ -604,14 +623,16 @@ class MainWindow(QMainWindow):
             who = self.backend.profile_label()
             self.profile.setText(who)
             self._apply_profile_chip()
-            self._alert(f"저장된 세션을 재사용합니다.\n{who}")
+            self._show_login_success(who, "저장된 세션으로 들어왔어요")
 
         self._busy("세션을 확인하는 중", work, done)
 
     def refresh_assignments(self) -> None:
+        """과제 조회."""
         self._ensure_data(self._fill_assignments, "과제를 불러오는 중")
 
     def _fill_assignments(self) -> None:
+        """필터에 맞는 과제 행을 표에 넣는다."""
         mode = self.asg_filter.currentIndex()
         rows: list[tuple] = []
         for ci, course in enumerate(self.backend.data.get("courses") or []):
@@ -637,6 +658,7 @@ class MainWindow(QMainWindow):
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
 
     def show_assignment_detail(self) -> None:
+        """고른 과제 상세."""
         r = self.asg_table.currentRow()
         if r < 0:
             self._alert("과제를 먼저 고르세요.", True)
@@ -654,9 +676,11 @@ class MainWindow(QMainWindow):
         self._busy("과제 상세를 불러오는 중", work, lambda text: self.asg_detail.setPlainText(text))
 
     def refresh_lessons(self) -> None:
+        """이러닝 조회."""
         self._ensure_data(self._fill_lessons, "이러닝을 불러오는 중")
 
     def _fill_lessons(self) -> None:
+        """차시 행을 표에 넣는다."""
         only_watch = self.les_filter.currentIndex() == 1
         rows: list[tuple] = []
         for ci, course in enumerate(self.backend.data.get("courses") or []):
@@ -689,6 +713,7 @@ class MainWindow(QMainWindow):
         self.les_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
     def show_progress(self) -> None:
+        """고른 차시 학습률."""
         r = self.les_table.currentRow()
         if r < 0:
             self._alert("차시를 먼저 고르세요.", True)
@@ -710,9 +735,11 @@ class MainWindow(QMainWindow):
         self._busy("학습률을 조회하는 중", work, done)
 
     def refresh_summary(self) -> None:
+        """현황 한 표."""
         self._ensure_data(self._fill_summary, "현황을 모으는 중")
 
     def _fill_summary(self) -> None:
+        """과목별 미제출·미완료 수를 채운다."""
         summary = list(self.backend.data.get("summary") or [])
         if not summary:
             for course in self.backend.data.get("courses") or []:
@@ -728,6 +755,7 @@ class MainWindow(QMainWindow):
         self.sum_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
 
     def save_result(self) -> None:
+        """조회 결과를 result.json 에 저장한다."""
         def work() -> str:
             if not self.backend.data.get("courses"):
                 self.backend.fetch()
@@ -736,6 +764,7 @@ class MainWindow(QMainWindow):
         self._busy("저장하는 중", work, lambda path: self._alert(f"저장했습니다.\n{path}"))
 
     def load_result(self) -> None:
+        """저장해 둔 조회 결과를 다시 그린다."""
         def work() -> dict:
             return self.backend.load_saved()
 

@@ -13,6 +13,7 @@ if str(HERE) not in sys.path:
 
 
 def _fail(msg: str) -> int:
+    """시작 실패를 로그와 알림창으로 남긴다."""
     log = ROOT / "seowon-gui.log"
     try:
         log.write_text(msg, encoding="utf-8")
@@ -28,6 +29,7 @@ def _fail(msg: str) -> int:
 
 
 def main() -> int:
+    """PyQt 창을 띄운다. seowon-gui.exe 는 이미 콘솔 없이 이 파일을 연다."""
     try:
         from PyQt6.QtGui import QFont
         from PyQt6.QtWidgets import QApplication
