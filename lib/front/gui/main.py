@@ -29,6 +29,7 @@ def _fail(msg: str) -> int:
 
 def main() -> int:
     try:
+        from PyQt6.QtGui import QFont
         from PyQt6.QtWidgets import QApplication
         from window import MainWindow
     except Exception:
@@ -39,7 +40,10 @@ def main() -> int:
 
     try:
         app = QApplication(sys.argv)
-        app.setApplicationName("seowon-gui")
+        app.setStyle("Fusion")
+        app.setApplicationName("e-campus")
+        font = QFont("Malgun Gothic", 10)
+        app.setFont(font)
         win = MainWindow()
         if "--demo" in sys.argv:
             win.demo_chk.setChecked(True)

@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
+LOGIN_PATH = ROOT / "login.json"
 
 
 def find_tui_exe() -> Path | None:
-    for name in ("seowon-tui.exe", "seowon-cli.exe"):
+    for name in ("seowon-tui.exe", "seowon-core.exe", "seowon-cli.exe"):
         p = ROOT / name
         if p.is_file():
             return p
@@ -36,6 +37,38 @@ def _find_percent(obj: Any) -> int | None:
 
 def testdata_dir() -> Path:
     return ROOT / "db" / "testdata"
+
+
+def load_login_file() -> tuple[str, str]:
+    """login.json 에서 학번·비밀번호를 읽는다. 없거나 깨지면 빈 값."""
+    if not LOGIN_PATH.is_file():
+        return "", ""
+    try:
+        raw = json.loads(LOGIN_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "", ""
+    if not isinstance(raw, dict):
+        return "", ""
+    sid = str(raw.get("studentId") or "").strip()
+    pw = str(raw.get("password") or "")
+    if not pw.strip():
+        pw = ""
+    return sid, pw
+
+
+def login_file_complete() -> bool:
+    sid, pw = load_login_file()
+    return bool(sid and pw)
+
+
+def ensure_login_file() -> Path:
+    """없으면 빈 login.json 을 만든다."""
+    if not LOGIN_PATH.is_file():
+        LOGIN_PATH.write_text(
+            json.dumps({"studentId": "", "password": ""}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return LOGIN_PATH
 
 
 class BackendError(RuntimeError):
@@ -93,6 +126,11 @@ class Backend:
 
     def login(self, student_id: str, password: str, demo: bool) -> dict[str, Any]:
         self.demo = demo
+        file_sid, file_pw = load_login_file()
+        student_id = (student_id or "").strip() or file_sid
+        password = password or file_pw
+        if not demo and (not student_id or not password):
+            raise BackendError("학번 또는 비밀번호가 비어 있습니다. login.json 을 채우거나 입력하세요.")
         exe = find_tui_exe()
         if demo:
             if exe:
@@ -117,7 +155,7 @@ class Backend:
             }
 
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다. 먼저 build.bat tui 를 실행하세요.")
+            raise BackendError("seowon-tui.exe 또는 seowon-core.exe 가 없습니다. 먼저 build.bat 를 실행하세요.")
         env = os.environ.copy()
         env["SEOWON_ID"] = student_id
         env["SEOWON_PW"] = password
@@ -144,7 +182,7 @@ class Backend:
             return self.load_demo_result()
         exe = find_tui_exe()
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다. 먼저 build.bat tui 를 실행하세요.")
+            raise BackendError("seowon-tui.exe 또는 seowon-core.exe 가 없습니다. 먼저 build.bat 를 실행하세요.")
         args = ["--rpc", "fetch"]
         out = self._run_raw(exe, args)
         data = json.loads(out)
@@ -179,7 +217,7 @@ class Backend:
             return "(데모 상세 파일이 없습니다)"
         exe = find_tui_exe()
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다.")
+            raise BackendError("seowon-tui.exe 또는 seowon-core.exe 가 없습니다.")
         out = self._run(exe, ["--rpc", "detail", str(course_i), str(assign_i)])
         if not out.get("ok"):
             raise BackendError(out.get("error") or "상세 조회 실패")
@@ -195,7 +233,7 @@ class Backend:
             return 72
         exe = find_tui_exe()
         if not exe:
-            raise BackendError("seowon-tui.exe 가 없습니다.")
+            raise BackendError("seowon-tui.exe 또는 seowon-core.exe 가 없습니다.")
         out = self._run(exe, ["--rpc", "progress", str(course_i), str(lesson_i)])
         if not out.get("ok"):
             raise BackendError(out.get("error") or "학습률 조회 실패")

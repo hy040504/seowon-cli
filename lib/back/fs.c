@@ -83,6 +83,91 @@ int sw_config_save(const SwConfig *cfg)
     return rc;
 }
 
+// 빈 로그인 계정으로 채우기
+void sw_login_file_default(SwLoginFile *lf)
+{
+    memset(lf, 0, sizeof(*lf));
+    sw_str_copy(lf->path, sizeof(lf->path), SW_LOGIN_FILE);
+}
+
+// 학번·비밀번호가 둘 다 있으면 1
+int sw_login_file_complete(const SwLoginFile *lf)
+{
+    const char *p;                  // 비밀번호가 공백만인지 볼 때
+
+    if (!lf || !lf->student_id[0] || !lf->password[0]) return 0;
+    for (p = lf->password; *p; p++) {
+        if (*p != ' ' && *p != '\t' && *p != '\r' && *p != '\n') return 1;
+    }
+    return 0;
+}
+
+// 비밀번호가 남지 않게 메모리를 지운다
+void sw_login_file_wipe(SwLoginFile *lf)
+{
+    if (!lf) return;
+#ifdef _WIN32
+    SecureZeroMemory(lf, sizeof(*lf));
+#else
+    memset(lf, 0, sizeof(*lf));
+#endif
+}
+
+// login.json 불러오기 (RETURN: SW_OK)
+int sw_login_file_load(const char *path, SwLoginFile *lf)
+{
+    SwBuf raw;                      // 파일 원문
+    cJSON *root;                    // 전체 JSON
+
+    sw_login_file_default(lf);
+    if (path && *path) sw_str_copy(lf->path, sizeof(lf->path), path);
+    if (sw_read_file(lf->path, &raw) != SW_OK) {
+        sw_buf_free(&raw);
+        return SW_ERR_IO;
+    }
+    root = cJSON_Parse(raw.p);
+    sw_buf_free(&raw);
+    if (!root) return SW_ERR_PARSE;
+    sw_str_copy(lf->student_id, sizeof(lf->student_id), js_str(root, "studentId", ""));
+    sw_str_copy(lf->password, sizeof(lf->password), js_str(root, "password", ""));
+    sw_str_trim(lf->student_id);
+    cJSON_Delete(root);
+    return SW_OK;
+}
+
+// login.json 저장 (RETURN: SW_OK)
+int sw_login_file_save(const SwLoginFile *lf)
+{
+    cJSON *root = cJSON_CreateObject(); // 저장할 JSON
+    char *txt;                      // pretty 문자열
+    int rc;                         // 파일 쓰기 결과
+
+    cJSON_AddStringToObject(root, "studentId", lf->student_id);
+    cJSON_AddStringToObject(root, "password", lf->password);
+    txt = cJSON_Print(root);
+    cJSON_Delete(root);
+    if (!txt) return SW_ERR;
+    rc = sw_write_file(lf->path[0] ? lf->path : SW_LOGIN_FILE, txt, strlen(txt));
+    cJSON_free(txt);
+    return rc;
+}
+
+// 없으면 빈 login.json 을 만든다 (RETURN: SW_OK)
+int sw_login_file_ensure(const char *path)
+{
+    SwLoginFile lf;                 // 빈 계정
+    SwBuf raw;                      // 이미 있으면 읽기만
+
+    if (sw_read_file(path && *path ? path : SW_LOGIN_FILE, &raw) == SW_OK) {
+        sw_buf_free(&raw);
+        return SW_OK;
+    }
+    sw_buf_free(&raw);
+    sw_login_file_default(&lf);
+    if (path && *path) sw_str_copy(lf.path, sizeof(lf.path), path);
+    return sw_login_file_save(&lf);
+}
+
 // 세션·결과 파일 경로 만들기
 void sw_config_paths(const SwConfig *cfg, char *session_path, size_t ssz, char *result_path, size_t rsz)
 {

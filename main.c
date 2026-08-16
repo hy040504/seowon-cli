@@ -28,6 +28,7 @@ static void usage(void)
     printf("  seowon-tui --help     이 도움말\n\n");
     printf("저장 파일 (JSON만):\n");
     printf("  config.json           마지막 학번, 저장 옵션, dataDir\n");
+    printf("  login.json            학번·비밀번호 (둘 다 있으면 입력 생략)\n");
     printf("  db/session.json       쿠키 (비밀번호 없음)\n");
     printf("  db/result.json        최근 조회 결과\n");
 }
@@ -113,10 +114,33 @@ static int run_rpc(SwApp *app, int argc, char **argv)
     if (strcmp(cmd, "login") == 0) {
         const char *id = getenv("SEOWON_ID");
         const char *pw = getenv("SEOWON_PW");
+        char idbuf[SW_STR_ID];
+        char pwbuf[SW_STR_PW];
+        SwLoginFile lf;
         int rc;
+
+        idbuf[0] = 0;
+        pwbuf[0] = 0;
         if (argc > i + 2 && argv[i + 2][0]) id = argv[i + 2];
         if (argc > i + 3 && argv[i + 3][0]) pw = argv[i + 3];
-        rc = sw_app_login_with(app, id ? id : "", pw ? pw : "");
+        if (id && id[0]) sw_str_copy(idbuf, sizeof(idbuf), id);
+        if (pw && pw[0]) sw_str_copy(pwbuf, sizeof(pwbuf), pw);
+
+        // 환경변수·인자에 빈 칸이 있으면 login.json 으로 채운다
+        if (!idbuf[0] || !pwbuf[0]) {
+            if (sw_login_file_load(SW_LOGIN_FILE, &lf) == SW_OK) {
+                if (!idbuf[0]) sw_str_copy(idbuf, sizeof(idbuf), lf.student_id);
+                if (!pwbuf[0]) sw_str_copy(pwbuf, sizeof(pwbuf), lf.password);
+            }
+            sw_login_file_wipe(&lf);
+        }
+
+        rc = sw_app_login_with(app, idbuf, pwbuf);
+#ifdef _WIN32
+        SecureZeroMemory(pwbuf, sizeof(pwbuf));
+#else
+        memset(pwbuf, 0, sizeof(pwbuf));
+#endif
         printf("{\"ok\":%s,\"studentId\":\"%s\",\"studentName\":\"%s\",\"deptName\":\"%s\",\"deptCd\":\"%s\",\"error\":\"%s\"}\n",
                rc == SW_OK ? "true" : "false", app->sess.student_id, app->sess.student_name,
                app->sess.dept_name, app->sess.dept_cd, app->last_error);
