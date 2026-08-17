@@ -23,4 +23,3 @@ __pycache__/
 *.pyc
 .venv/
 seowon-gui.log
-seowon-client-web/node_modules/
