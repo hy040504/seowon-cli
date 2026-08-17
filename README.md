@@ -1,22 +1,49 @@
 # seowon-cli
 
 <p align="center">
-  <strong>서원대학교 e-campus 과제 · 이러닝 현황을 터미널과 창에서 한 번에 보는 C 클라이언트</strong>
+  <strong>서원대학교 e-campus · 과제 · 이러닝을 한곳에서 보는 비공식 클라이언트</strong>
+</p>
+
+<p align="center">
+  로그인 한 번으로 <b>지금 할 과제</b>와 <b>들어야 할 이러닝</b>을 모읍니다.<br>
+  터미널 · 창 · 브라우저 중 편한 화면을 고르면 됩니다.
 </p>
 
 <p align="center">
   <img alt="C11" src="https://img.shields.io/badge/C-11-00599C?logo=c&logoColor=white">
+  <img alt="Python" src="https://img.shields.io/badge/GUI-PyQt6-3776AB?logo=python&logoColor=white">
+  <img alt="Node" src="https://img.shields.io/badge/Web-Node_20-339933?logo=nodedotjs&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10+-0078D6?logo=windows&logoColor=white">
   <img alt="Storage" src="https://img.shields.io/badge/storage-JSON_only-F7DF1E">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
-  <img alt="Query only" src="https://img.shields.io/badge/mode-조회_전용-informational">
 </p>
 
-한 번 로그인하면 과목마다 강의실을 열지 않고, **지금 할 과제**와 **들어야 할 이러닝**을 표로 봅니다.
+<p align="center">
+  <a href="https://github.com/hy040504/seowon-cli">hy040504/seowon-cli</a>
+  ·
+  <a href="https://github.com/hy040504/seowon-client-api">seowon-client-api</a>
+</p>
 
-공식 SDK가 아닙니다. **조회만** 합니다. 과제 제출, 이러닝 자동 시청, 수강신청은 넣지 않습니다.
+공식 SDK가 아닙니다. 수업용 비공식 도구입니다.  
+TUI·GUI는 **조회만** 합니다. 웹은 조회에 더해 과제 제출·자료·강의 받기를 할 수 있습니다.  
+이러닝 자동 시청, 출석 처리, 수강신청 등록은 넣지 않습니다.
 
-저장소: [hy040504/seowon-cli](https://github.com/hy040504/seowon-cli)
+---
+
+## 화면 세 가지
+
+| | [TUI](#빠른-시작) | [GUI](#gui) | [웹](seowon-client-web/README.md) |
+| --- | :---: | :---: | :---: |
+| 실행 | `seowon-tui.exe` | `seowon-gui.exe` | `seowon-client-web/` Node 서버 |
+| 쓰는 사람 | 내 PC | 내 PC | 같은 망의 여러 학생 |
+| 과제 · 이러닝 조회 | O | O | O |
+| 현황 한 표 | O | O | O |
+| 데모(`--demo`) | O | O | — |
+| 과제 제출 · 첨부 받기 | — | — | O |
+| 강의실 자료 | — | — | O |
+| 이러닝 재생 · 받기 | — | — | O |
+| 시간표 · 성적 | — | — | O |
+| 비밀번호 저장 | 로컬 `login.json` | 로컬 `login.json` | 디스크에 안 남김 (메모리 세션) |
 
 ```text
 ============================================
@@ -37,35 +64,95 @@
 
 ---
 
-## 브랜치
-
-| 브랜치 | 들어 있는 것 | 실행 파일 |
-| --- | --- | --- |
-| [`main`](https://github.com/hy040504/seowon-cli/tree/main) | TUI + GUI | `seowon-tui.exe`, `seowon-gui.exe` |
-| [`tui`](https://github.com/hy040504/seowon-cli/tree/tui) | 터미널만. PyQt 없음 | `seowon-tui.exe` |
-| [`gui`](https://github.com/hy040504/seowon-cli/tree/gui) | PyQt만. 터미널 메뉴 없음 | `seowon-gui.exe` (조회는 `seowon-tui.exe --rpc`) |
-
----
-
 ## 왜 쓰나
 
 e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있습니다.  
 이 프로그램은 로그인 한 번으로 전 과목을 모아 **지금 할 일**만 보여 줍니다.
 
-| 보고 싶은 것 | 메뉴 |
-| --- | --- |
-| 기간 안 미제출 과제 | `2` → `2` |
-| 미제출·진행중 전수 | `2` → `3` |
-| 들을 이러닝 차시 | `3` → `2` |
-| 과목별 미제출 + 미완료 한 표 | `4` |
-| 고른 차시 학습률(%) | `3` → `3` |
+| 보고 싶은 것 | TUI | 웹 |
+| --- | --- | --- |
+| 기간 안 미제출 과제 | `2` → `2` | 과제 → 지금 할 수 있는 과제 |
+| 미제출·진행중 전수 | `2` → `3` | 과제 → 미제출 · 진행중 |
+| 들을 이러닝 차시 | `3` → `2` | 이러닝 → 들을 차시 |
+| 과목별 미제출 + 미완료 | `4` | 현황 (교과 / 비교과) |
+| 고른 차시 학습률(%) | `3` → `3` | 이러닝 → 학습률(%) |
 
-학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다.  
-학번·비밀번호는 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 예전처럼 직접 입력합니다. `session.json` / `result.json` / `config.json` 에는 비밀번호를 넣지 않습니다.
+학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다. 시청 기록은 보내지 않습니다.
+
+TUI·GUI는 학번·비밀번호를 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 직접 입력합니다.  
+`session.json` / `result.json` / `config.json` 에는 비밀번호를 넣지 않습니다.
 
 ---
 
-## 메뉴
+## 브랜치
+
+| 브랜치 | 들어 있는 것 | 실행 파일 |
+| --- | --- | --- |
+| [`main`](https://github.com/hy040504/seowon-cli/tree/main) | TUI + GUI + 웹 | `seowon-tui.exe`, `seowon-gui.exe`, `seowon-client-web/` |
+| [`tui`](https://github.com/hy040504/seowon-cli/tree/tui) | 터미널만. PyQt·웹 없음 | `seowon-tui.exe` |
+| [`gui`](https://github.com/hy040504/seowon-cli/tree/gui) | PyQt만. 터미널 메뉴 없음 | `seowon-gui.exe` (조회는 `seowon-tui.exe --rpc`) |
+
+---
+
+## 빠른 시작
+
+### 필요 환경
+
+| 항목 | 내용 |
+| --- | --- |
+| OS | Windows 10+ |
+| TUI | C11 · MinGW-w64 / MSVC / TinyCC |
+| GUI | Python 3 + PyQt6 |
+| 웹 | Node.js 20+ · [seowon-client-api](https://github.com/hy040504/seowon-client-api) `dist/` |
+| 저장 | JSON만 (`config.json`, `login.json`, `session.json`, `result.json`) |
+| 빌드 | `build.bat` 만. Makefile / CMake 없음 |
+
+```bat
+winget install BrechtSanders.WinLibs.POSIX.UCRT
+```
+
+### TUI · GUI 빌드
+
+이 폴더를 VS Code로 연 뒤 `Ctrl+Shift+B`, 또는:
+
+```bat
+build.bat              TUI 실행 파일 (seowon-tui.exe)
+build.bat gui          GUI 실행 파일 (seowon-gui.exe)
+build.bat all          둘 다
+build.bat test         TUI 단위 테스트
+pip install -r requirements.txt
+```
+
+```bat
+seowon-tui.exe              터미널 메뉴 (실제 e-campus)
+seowon-tui.exe --demo       testdata 로 오프라인 시연
+seowon-tui.exe --test       파서 · 필터 · 암호 단위 테스트
+seowon-gui.exe              PyQt 창
+seowon-gui.exe --demo       GUI 를 데모 체크로 시작
+python lib\front\gui\main.py
+```
+
+실행 파일은 **`seowon-tui.exe`** 와 **`seowon-gui.exe`** 만 씁니다.  
+실제 로그인을 GUI에서 쓰려면 먼저 `build.bat`(TUI)가 되어 있어야 합니다.  
+GUI는 `seowon-tui.exe --rpc` 를 **콘솔 창 없이** 백그라운드에서 부릅니다.
+
+### 웹 (다른 학생용)
+
+자세한 실행·API는 [`seowon-client-web/README.md`](seowon-client-web/README.md) 를 봅니다.
+
+```bat
+cd seowon-client-web
+start.bat
+```
+
+기본 주소는 `http://127.0.0.1:3780` 입니다.  
+같은 Wi-Fi의 다른 학생은 콘솔에 찍힌 `http://<이 컴퓨터 IP>:3780` 으로 들어옵니다.
+
+인터넷에 그대로 열지 마세요. HTTP이고 학번·비밀번호가 오갑니다. **같은 실습실·같은 Wi-Fi 실험용**입니다.
+
+---
+
+## TUI 메뉴
 
 `switch` 계층 메뉴입니다. `z` / `0` 은 뒤로, `q` 는 종료입니다.  
 기능표 번호(`1.1.1` 같은 것)는 메뉴에 적지 않습니다.
@@ -98,55 +185,35 @@ e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sug
 
 ---
 
-## 빠른 시작
+## GUI
 
-### 필요 환경
+`lib/front/gui` 의 PyQt6 화면입니다. 토스에 가까운 카드 UI이고, 설정에서 라이트/다크를 켭니다.
 
-| 항목 | 내용 |
+- 로그인에 성공하면 알림창 대신 Successful! 카드
+- 로그인·조회 중에는 스피너 오버레이
+- 로그인 칸은 `login.json` 을 미리 채움. 학번·비밀번호가 둘 다 있으면 입력 없이 로그인
+- 데모 모드 칸은 파란 네모 안 V자 체크
+
+---
+
+## 웹
+
+[`seowon-client-web/`](seowon-client-web/) 는 Node 내장 `http` 서버입니다. Express를 쓰지 않습니다.  
+엔진은 [seowon-client-api](https://github.com/hy040504/seowon-client-api) 입니다.
+
+| 메뉴 | 하는 일 |
 | --- | --- |
-| OS | Windows 10+ |
-| 언어 | C11 |
-| 편집기 | Visual Studio Code |
-| 컴파일러 | MinGW-w64 / MSVC / TinyCC 중 하나 |
-| 저장 | JSON만 (`config.json`, `login.json`, `session.json`, `result.json`) |
-| 빌드 | `build.bat` 만. Makefile / CMake 없음 |
+| 로그인 | 학번·비밀번호. 성공 시 **로그인 완료**와 이름·학과 |
+| 과제 | 목록을 누르면 상세·첨부·제출 폼이 펼쳐짐 |
+| 강의실 자료 | 강의자료실 글과 첨부 다운로드 |
+| 이러닝 | 출결 색, 학교 URL 재생, 진행 막대·취소가 있는 영상 받기 |
+| 시간표 | 과목 목록(전공/교양) + 공식 시간표 그림. 강의 30분 전·수업 중이면 깜빡임 |
+| 성적 | 공개된 과목 점수·등급. 미공개는 이유만 |
+| 현황 | 교과/비교과 필터. 지금 기간의 미제출·미완료는 흰 글씨 |
+| 설정 | 다크 모드, 다시 조회, 로그아웃 |
 
-```bat
-winget install BrechtSanders.WinLibs.POSIX.UCRT
-```
-
-### 빌드
-
-이 폴더를 VS Code로 연 뒤 `Ctrl+Shift+B`, 또는:
-
-```bat
-build.bat              TUI 실행 파일 (seowon-tui.exe)
-build.bat gui          GUI 실행 파일 (seowon-gui.exe)
-build.bat all          둘 다
-build.bat test         TUI 단위 테스트
-```
-
-GUI 는 Python 3 + PyQt6 가 필요합니다.
-
-```bat
-pip install -r requirements.txt
-```
-
-### 실행
-
-```bat
-seowon-tui.exe              터미널 메뉴 (실제 e-campus)
-seowon-tui.exe --demo       testdata 로 오프라인 시연
-seowon-tui.exe --test       파서 · 필터 · 암호 단위 테스트
-seowon-gui.exe              PyQt 창
-seowon-gui.exe --demo       GUI 를 데모 체크로 시작
-python lib\front\gui\main.py
-```
-
-실행 파일은 **`seowon-tui.exe`** 와 **`seowon-gui.exe`** 만 쓴다.  
-데모는 네트워크 없이 메뉴와 표를 보여 줄 때 씁니다.  
-실제 로그인을 GUI 에서 쓰려면 먼저 `build.bat`(TUI) 가 되어 있어야 합니다.  
-GUI 는 `seowon-tui.exe --rpc` 를 **콘솔 창 없이** 백그라운드에서 부릅니다.
+세션은 쿠키 `sw_sid`(HttpOnly)와 서버 메모리에만 약 30분 둡니다.  
+서버를 재시작하면 세션은 사라지므로 다시 로그인합니다.
 
 ---
 
@@ -154,9 +221,10 @@ GUI 는 `seowon-tui.exe --rpc` 를 **콘솔 창 없이** 백그라운드에서 �
 
 저장소 루트가 작업 폴더입니다. `lib/front` · `lib/back` 배치는 [SeowonProject](https://github.com/hy040504/SeowonProject/tree/master/project) 를 따릅니다.
 
-모듈은 `.h` / `.c` 한 쌍입니다. **`.h`는 다른 파일이 불러도 되는 API(함수·상수·자료형)**, **`.c`는 그 구현**입니다. 파일 안에서만 쓰는 함수는 `.c`에 `static` 으로 둡니다.
+모듈은 `.h` / `.c` 한 쌍입니다. **`.h`는 다른 파일이 불러도 되는 API**, **`.c`는 그 구현**입니다.  
+파일 안에서만 쓰는 함수는 `.c`에 `static` 으로 둡니다.
 
-화면은 `lib/front/tui`(C 터미널)와 `lib/front/gui`(PyQt)로 나뉩니다. 조회·로그인·JSON 은 `lib/back` 을 같이 씁니다. GUI 는 `seowon-tui.exe --rpc` 를 콘솔 창 없이 부릅니다.
+화면은 `lib/front/tui`(C 터미널)와 `lib/front/gui`(PyQt)로 나뉩니다. 조회·로그인·JSON 은 `lib/back` 을 같이 씁니다.
 
 ```text
 seowon-cli
@@ -183,6 +251,7 @@ seowon-cli
 │  └─ util.c
 ├─ db/testdata            데모·테스트용 HTML/JSON (세션 파일 아님)
 ├─ login.json.example     학번·비밀번호 빈 칸 예제
+├─ seowon-client-web      다른 학생용 웹 (seowon-client-api)
 ├─ requirements.txt       PyQt6
 ├─ build.bat
 └─ README.md
@@ -190,14 +259,27 @@ seowon-cli
 
 ```mermaid
 flowchart LR
-  A["prompt.c / window.py"] --> B[data_manager.c]
-  B --> C[crypto.c]
-  B --> D[http.c]
-  D --> E[e-campus]
-  D --> H[sugangh SSV]
-  D --> F[parse.c]
-  F --> B
-  B --> G[fs.c JSON]
+  subgraph local["내 PC"]
+    TUI["prompt.c"]
+    GUI["window.py"]
+  end
+  subgraph web["seowon-client-web"]
+    PAGE["public/"]
+    SRV["server.js"]
+  end
+  TUI --> DM[data_manager.c]
+  GUI -->|"--rpc"| TUI
+  PAGE --> SRV
+  SRV --> API[seowon-client-api]
+  DM --> C[crypto.c]
+  DM --> H[http.c]
+  H --> EC[e-campus]
+  H --> SG[sugangh SSV]
+  H --> P[parse.c]
+  P --> DM
+  DM --> FS[fs.c JSON]
+  API --> EC
+  API --> SG
 ```
 
 ---
@@ -256,7 +338,8 @@ flowchart LR
 
 ## 요청 흐름
 
-[seowon-client-api](https://github.com/hy040504/seowon-client-api) 와 같은 조회 경로입니다.
+[seowon-client-api](https://github.com/hy040504/seowon-client-api) 와 같은 조회 경로입니다.  
+웹 서버도 같은 API 패키지로 e-campus·수강신청을 읽습니다.
 
 1. `GET /home/mainPop/popup/login` — 세션 쿠키
 2. NICE `encryptData` 를 `POST /user/userHome/login`
@@ -283,13 +366,16 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 ## 하지 않는 것
 
-- 과제 제출, 파일 업로드
-- 이러닝 자동 시청 · 출석 처리
-- 수강신청 · 희망바구니
-- 다른 학생 계정 조회
-- `.dat` / `.txt` / SQLite
-- `session.json` · `result.json` · `config.json` 에 비밀번호 저장
-- `login.json` 을 Git·원격에 올리기 (로컬 전용)
+| | TUI · GUI | 웹 |
+| --- | :---: | :---: |
+| 과제 제출 · 파일 업로드 | 안 함 | 학교 폼으로 제출 |
+| 강의실 자료 · 이러닝 영상 받기 | 안 함 | 함 |
+| 이러닝 자동 시청 · 출석 처리 | 안 함 | 안 함 |
+| 수강신청 · 희망바구니 등록 | 안 함 | 조회만 (그림·목록) |
+| 다른 학생 계정 조회 | 안 함 | 안 함 |
+| `.dat` / `.txt` / SQLite | 안 함 | 안 함 |
+| 비밀번호를 세션·결과·설정 파일에 저장 | 안 함 | 안 함 (디스크에 비밀번호 파일 없음) |
+| `login.json` 을 Git·원격에 올리기 | 안 함 | — |
 
 ---
 
@@ -299,7 +385,7 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 ### 브랜치 나누기
 
-- `main` — TUI와 GUI를 모두 둠.
+- `main` — TUI와 GUI, 웹을 모두 둠.
 - `tui` — 터미널만. `lib/front/gui`, `gui_main.c`, `requirements.txt` 없음.
 - `gui` — PyQt만. 터미널 메뉴(`prompt.c`) 없음. 조회는 `seowon-tui.exe --rpc`.
 
@@ -333,6 +419,14 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 - 로그인·조회 중에는 스피너 오버레이. `seowon-tui.exe --rpc` 는 콘솔 창 없이 백그라운드에서 돈다.
 - 실행 파일은 `seowon-tui.exe` 와 `seowon-gui.exe` 만 쓴다.
 - 로그인 칸은 `login.json` 을 미리 채움. 학번·비밀번호가 둘 다 있으면 입력 없이 로그인할 수 있음.
+
+### 웹 (`seowon-client-web/`)
+
+- Node 내장 `http` 로 여러 학생이 각자 로그인하는 화면을 둠. Express 없음.
+- 데모 모드는 없음. 비밀번호는 파일로 남기지 않고, 세션은 메모리에 약 30분.
+- 과제 행을 누르면 상세·첨부·제출이 펼쳐짐. 강의실 자료와 이러닝 영상을 받을 수 있음.
+- 시간표는 공식 SVG를 HTML로 감싸 흰 표만 보이게 함. 성적·현황(교과/비교과)을 같이 둠.
+- 조회 대기는 사이드바가 아니라 해당 페이지 안에만 띄워, 메뉴를 옮겨 다른 조회를 병렬로 걸 수 있음.
 
 ---
 

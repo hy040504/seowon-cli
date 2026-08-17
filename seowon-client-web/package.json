@@ -1,0 +1,13 @@
+{
+  "name": "seowon-client-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "seowon-client-api 기반 조회 전용 웹. 다른 학생도 브라우저로 로그인한다.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>e-campus · 과제 · 이러닝 조회</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">e-campus</div>
+      <div class="brand-sub">과제 · 강의실 자료 · 시간표</div>
+      <nav class="nav" id="nav">
+        <button type="button" data-page="login" class="active">로그인</button>
+        <button type="button" data-page="asg">과제</button>
+        <button type="button" data-page="mat">강의실 자료</button>
+        <button type="button" data-page="les">이러닝</button>
+        <button type="button" data-page="tt">시간표</button>
+        <button type="button" data-page="score">성적</button>
+        <button type="button" data-page="sum">현황</button>
+        <button type="button" data-page="cfg">설정</button>
+      </nav>
+      <div class="chip">
+        <div class="avatar" id="avatar">?</div>
+        <div>
+          <div class="chip-name" id="chipName">로그인 전</div>
+          <div class="chip-sub" id="chipSub">세션 없음</div>
+        </div>
+      </div>
+      <button type="button" class="side-logout hidden" id="btnLogoutSide">로그아웃</button>
+    </aside>
+
+    <main class="canvas">
+      <section class="page" id="page-login">
+        <div class="login-wrap">
+          <div class="card login-card" id="loginForm">
+            <h1 class="hello">안녕하세요</h1>
+            <p class="caption">학번과 비밀번호로<br>e-campus를 확인하세요</p>
+            <label class="field">학번</label>
+            <input id="sid" type="text" inputmode="numeric" autocomplete="username" placeholder="학번">
+            <label class="field">비밀번호</label>
+            <input id="pw" type="password" autocomplete="current-password" placeholder="비밀번호">
+            <button type="button" class="primary" id="btnLogin">로그인</button>
+            <p class="hint" id="loginErr"></p>
+          </div>
+          <div class="card login-card login-ok hidden" id="loginOk">
+            <div class="ok-mark" id="okMark">
+              <svg viewBox="0 0 76 76" width="76" height="76">
+                <circle cx="38" cy="38" r="34" fill="none" stroke="currentColor" stroke-width="4"/>
+                <path d="M22 39 L34 51 L55 26" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h2 class="success">Successful!</h2>
+            <p class="ok-done">로그인 완료</p>
+            <p class="hello" id="okWho"></p>
+            <p class="caption" id="okSub"></p>
+            <button type="button" class="primary" id="btnGoAsg">과제 보러 가기</button>
+            <button type="button" class="ghost" id="btnAgain">로그아웃</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-asg">
+        <h1 class="page-title">과제</h1>
+        <p class="caption">기간과 제출 상태를 한 번에 보고, 필요할 때 제출합니다.</p>
+        <div class="toolbar">
+          <select id="asgFilter">
+            <option value="all">전체 과제</option>
+            <option value="due">지금 할 수 있는 과제</option>
+            <option value="missing">미제출 · 진행중</option>
+          </select>
+          <button type="button" class="primary" id="btnAsg">조회</button>
+        </div>
+        <div class="job-list" id="asgList"></div>
+        <div class="page-overlay hidden" id="ov-asg">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">과제를 불러오는 중</p>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-mat">
+        <h1 class="page-title">강의실 자료</h1>
+        <p class="caption">강의자료실 글을 모으고 첨부 파일을 받습니다.</p>
+        <div class="toolbar">
+          <button type="button" class="primary" id="btnMat">조회</button>
+        </div>
+        <div class="job-list" id="matList"></div>
+        <div class="card detail-card">
+          <p class="job-title" id="matPickTitle">자료를 고르세요</p>
+          <div class="file-list" id="matFiles"></div>
+        </div>
+        <div class="page-overlay hidden" id="ov-mat">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">자료를 불러오는 중</p>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-les">
+        <h1 class="page-title">이러닝</h1>
+        <p class="caption">차시 출결과 들어야 할 강의를 모읍니다.</p>
+        <div class="toolbar">
+          <select id="lesFilter">
+            <option value="all">차시 목록</option>
+            <option value="watch">들을 차시</option>
+          </select>
+          <button type="button" class="primary" id="btnLes">조회</button>
+          <button type="button" class="ghost" id="btnProg">학습률(%)</button>
+        </div>
+        <div class="job-list" id="lesList"></div>
+        <div class="page-overlay hidden" id="ov-les">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">이러닝을 불러오는 중</p>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-tt">
+        <h1 class="page-title">시간표</h1>
+        <p class="caption">이번 학기 수강 시간표를 표와 그림으로 봅니다. 신청·취소는 하지 않습니다.</p>
+        <div class="toolbar">
+          <button type="button" class="primary" id="btnTt">조회</button>
+          <button type="button" class="ghost" id="btnTtDl">그림 저장</button>
+        </div>
+        <p class="hint" id="ttMeta"></p>
+        <div class="job-list" id="ttList"></div>
+        <div class="card tt-card">
+          <div class="tt-wrap" id="ttWrap">시간표를 조회하세요.</div>
+        </div>
+        <div class="page-overlay hidden" id="ov-tt">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">시간표를 불러오는 중</p>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-score">
+        <h1 class="page-title">성적</h1>
+        <p class="caption">과목별 공개된 성적만 봅니다. 설문·미공개 과목은 이유만 보여 줍니다.</p>
+        <div class="toolbar">
+          <button type="button" class="primary" id="btnScore">조회</button>
+        </div>
+        <div class="job-list" id="scoreList"></div>
+        <div class="card detail-card">
+          <pre id="scoreDetail">과목을 고르면 항목별 점수를 보여 줍니다.</pre>
+        </div>
+        <div class="page-overlay hidden" id="ov-score">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">성적을 불러오는 중</p>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-sum">
+        <h1 class="page-title">현황</h1>
+        <p class="caption">과목별 미제출 과제와 미완료 이러닝을 한 표로 봅니다.</p>
+        <div class="toolbar">
+          <select id="sumFilter">
+            <option value="all">전체</option>
+            <option value="curricular">교과</option>
+            <option value="extracurricular">비교과</option>
+          </select>
+          <button type="button" class="primary" id="btnSum">과목별 모아 보기</button>
+        </div>
+        <div class="job-list" id="sumList"></div>
+        <div class="page-overlay hidden" id="ov-sum">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">현황을 불러오는 중</p>
+        </div>
+      </section>
+
+      <section class="page hidden" id="page-cfg">
+        <h1 class="page-title">설정</h1>
+        <p class="caption">화면 테마와 다시 조회를 여기서 바꿉니다.</p>
+        <div class="card setting-card">
+          <div class="setting-row">
+            <div class="hello">다크 모드</div>
+            <label class="switch">
+              <input id="dark" type="checkbox">
+              <span class="track"></span>
+            </label>
+          </div>
+          <p class="caption" id="themeCap">밝은 카드 화면으로 봅니다.</p>
+        </div>
+        <div class="card setting-card">
+          <p class="hint">
+            이 웹은 여러 학생이 각자 로그인합니다. 서버에 비밀번호를 파일로 남기지 않습니다.
+            세션은 약 30분 동안만 메모리에 둡니다.
+          </p>
+          <div class="toolbar">
+            <button type="button" class="primary" id="btnRefresh">다시 조회</button>
+            <button type="button" class="ghost" id="btnLogout">로그아웃</button>
+          </div>
+        </div>
+        <div class="page-overlay hidden" id="ov-cfg">
+          <div class="spinner"></div>
+          <p class="page-ov-msg">설정을 적용하는 중</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
