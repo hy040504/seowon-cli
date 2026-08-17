@@ -1,12 +1,11 @@
 # seowon-cli
 
 <p align="center">
-  <strong>서원대학교 e-campus · 과제 · 이러닝을 한곳에서 보는 비공식 클라이언트</strong>
+  <strong>서원대학교 e-campus 과제 · 이러닝을 터미널과 창에서 조회하는 C 클라이언트</strong>
 </p>
 
 <p align="center">
-  로그인 한 번으로 <b>지금 할 과제</b>와 <b>들어야 할 이러닝</b>을 모읍니다.<br>
-  터미널과 창에서 조회합니다.
+  로그인 한 번으로 <b>지금 할 과제</b>와 <b>들어야 할 이러닝</b>을 표로 봅니다.
 </p>
 
 <p align="center">
@@ -20,32 +19,12 @@
 
 <p align="center">
   <a href="https://github.com/hy040504/seowon-cli">hy040504/seowon-cli</a>
-  ·
-  <a href="https://github.com/hy040504/seowon-client-api">seowon-client-api</a>
-  ·
-  <a href="https://github.com/hy040504/seowon-client-web">seowon-client-web</a>
 </p>
 
-공식 SDK가 아닙니다. 수업용 비공식 도구입니다.  
-이 저장소의 TUI·GUI는 **조회만** 합니다. 과제 제출, 이러닝 자동 시청, 수강신청은 넣지 않습니다.  
-브라우저 웹은 별도 저장소 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 입니다.
+공식 SDK가 아닙니다. 수업용 **조회 전용** 도구입니다.  
+과제 제출, 이러닝 자동 시청, 출석 처리, 수강신청은 넣지 않습니다.
 
----
-
-## 화면 세 가지
-
-| | [TUI](#빠른-시작) | [GUI](#gui) | [웹](https://github.com/hy040504/seowon-client-web) |
-| --- | :---: | :---: | :---: |
-| 실행 | `seowon-tui.exe` | `seowon-gui.exe` | `seowon-client-web/` Node 서버 |
-| 쓰는 사람 | 내 PC | 내 PC | 같은 망의 여러 학생 |
-| 과제 · 이러닝 조회 | O | O | O |
-| 현황 한 표 | O | O | O |
-| 데모(`--demo`) | O | O | — |
-| 과제 제출 · 첨부 받기 | — | — | O |
-| 강의실 자료 | — | — | O |
-| 이러닝 재생 · 받기 | — | — | O |
-| 시간표 · 성적 | — | — | O |
-| 비밀번호 저장 | 로컬 `login.json` | 로컬 `login.json` | 디스크에 안 남김 (메모리 세션) |
+브라우저로 여러 학생이 쓰려면 별도 저장소 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 켭니다.
 
 ```text
 ============================================
@@ -66,22 +45,34 @@
 
 ---
 
+## 이 저장소에 있는 것
+
+| | TUI | GUI |
+| --- | :---: | :---: |
+| 실행 | `seowon-tui.exe` | `seowon-gui.exe` |
+| 과제 · 이러닝 조회 | O | O |
+| 현황 한 표 | O | O |
+| 오프라인 데모 | `--demo` | `--demo` |
+| 과제 제출 · 자료 받기 | — | — |
+
+---
+
 ## 왜 쓰나
 
 e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있습니다.  
 이 프로그램은 로그인 한 번으로 전 과목을 모아 **지금 할 일**만 보여 줍니다.
 
-| 보고 싶은 것 | TUI | 웹 |
-| --- | --- | --- |
-| 기간 안 미제출 과제 | `2` → `2` | 과제 → 지금 할 수 있는 과제 |
-| 미제출·진행중 전수 | `2` → `3` | 과제 → 미제출 · 진행중 |
-| 들을 이러닝 차시 | `3` → `2` | 이러닝 → 들을 차시 |
-| 과목별 미제출 + 미완료 | `4` | 현황 (교과 / 비교과) |
-| 고른 차시 학습률(%) | `3` → `3` | 이러닝 → 학습률(%) |
+| 보고 싶은 것 | TUI 메뉴 |
+| --- | --- |
+| 기간 안 미제출 과제 | `2` → `2` |
+| 미제출·진행중 전수 | `2` → `3` |
+| 들을 이러닝 차시 | `3` → `2` |
+| 과목별 미제출 + 미완료 | `4` |
+| 고른 차시 학습률(%) | `3` → `3` |
 
 학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다. 시청 기록은 보내지 않습니다.
 
-TUI·GUI는 학번·비밀번호를 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 직접 입력합니다.  
+학번·비밀번호를 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 직접 입력합니다.  
 `session.json` / `result.json` / `config.json` 에는 비밀번호를 넣지 않습니다.
 
 ---
@@ -112,8 +103,6 @@ TUI·GUI는 학번·비밀번호를 `login.json` 에 둘 다 채워 두면 입�
 winget install BrechtSanders.WinLibs.POSIX.UCRT
 ```
 
-### TUI · GUI 빌드
-
 이 폴더를 VS Code로 연 뒤 `Ctrl+Shift+B`, 또는:
 
 ```bat
@@ -136,8 +125,6 @@ python lib\front\gui\main.py
 실행 파일은 **`seowon-tui.exe`** 와 **`seowon-gui.exe`** 만 씁니다.  
 실제 로그인을 GUI에서 쓰려면 먼저 `build.bat`(TUI)가 되어 있어야 합니다.  
 GUI는 `seowon-tui.exe --rpc` 를 **콘솔 창 없이** 백그라운드에서 부릅니다.
-
-브라우저로 여러 학생이 쓰려면 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 켭니다. 이 저장소에는 웹 서버가 없습니다.
 
 ---
 
@@ -187,7 +174,11 @@ e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sug
 
 ## 관련 저장소
 
-브라우저 웹은 이 저장소에 없습니다. [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 봅니다.
+| 저장소 | 역할 |
+| --- | --- |
+| [seowon-cli](https://github.com/hy040504/seowon-cli) | 이 저장소. Windows TUI·GUI, 조회만 |
+| [seowon-client-web](https://github.com/hy040504/seowon-client-web) | 브라우저 웹. 여러 학생, 제출·받기·시간표·성적 |
+| [seowon-client-api](https://github.com/hy040504/seowon-client-api) | TypeScript 조회 엔진. 웹이 사용 |
 
 ---
 
@@ -342,7 +333,7 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 ### 브랜치 나누기
 
-- `main` — TUI와 GUI를 모두 둠. 웹은 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 으로 분리.
+- `main` — TUI와 GUI를 모두 둠.
 - `tui` — 터미널만. `lib/front/gui`, `gui_main.c`, `requirements.txt` 없음.
 - `gui` — PyQt만. 터미널 메뉴(`prompt.c`) 없음. 조회는 `seowon-tui.exe --rpc`.
 
@@ -379,7 +370,7 @@ HTTP는 Windows **WinHTTP**, JSON은 `lib/c_modules` 의 [cJSON](https://github.
 
 ### 웹 분리
 
-- 브라우저 웹은 이 저장소에서 빼고 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 으로 옮김.
+- 브라우저 웹은 이 저장소에 두지 않는다. [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 본다.
 
 ---
 
