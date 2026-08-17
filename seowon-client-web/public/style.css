@@ -483,13 +483,76 @@ button.primary:disabled { opacity: 0.65; cursor: wait; }
 #loginErr { color: var(--red); min-height: 1em; }
 
 .tt-card { padding: 0; overflow: hidden; margin-top: 14px; background: #fff; }
-.tt-wrap { overflow: auto; color: var(--text-3); min-height: 80px; background: #fff; }
+.tt-wrap { position: relative; overflow: auto; color: var(--text-3); min-height: 80px; background: #fff; }
+.tt-wrap.tt-zoomable { cursor: zoom-in; }
+.tt-zoom-hit {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: zoom-in;
+  z-index: 2;
+}
 .tt-frame {
   width: 100%;
   border: 0;
   background: #fff;
   display: block;
 }
+
+.tt-lb {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.tt-lb.hidden { display: none; }
+.tt-lb-bg {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 17, 20, 0.62);
+  cursor: zoom-out;
+}
+.tt-lb-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1100px, 96vw);
+  max-height: 92vh;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+  overflow: auto;
+  padding: 44px 12px 12px;
+}
+.tt-lb-x {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: var(--input);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 2;
+}
+.tt-lb-x:hover { background: var(--blue-soft); color: var(--blue); }
+.tt-lb-frame {
+  width: 100%;
+  min-height: 70vh;
+  border: 0;
+  background: #fff;
+  display: block;
+}
+body.tt-lb-open { overflow: hidden; }
 
 @media (max-width: 800px) {
   .app { flex-direction: column; }

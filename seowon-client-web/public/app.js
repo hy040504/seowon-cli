@@ -94,6 +94,7 @@ function resetSessionUi() {
   }
   state.timetable = null;
   state.downloads = {};
+  closeTtLightbox();
   state.asgSel = -1;
   state.lesSel = -1;
   state.scoreSel = -1;
@@ -648,6 +649,20 @@ function attendanceClass(status) {
 }
 
 /**
+ * 학교 출결 문구에서 화면 버튼 잔여 글자를 걷어 낸다.
+ * 예: "미학습(결석) X 강의보기" → "미학습(결석)"
+ * @param {string} status
+ * @returns {string}
+ */
+function cleanAttendanceLabel(status) {
+  return String(status || "")
+    .replace(/강의보기/g, "")
+    .replace(/\s*[xX×]\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
  * 이러닝 카드와 다운로드 진행 칸을 그린다.
  * @returns {void}
  */
@@ -674,7 +689,7 @@ function paintLessons() {
         metaParts: [
           { text: r.courseTitle },
           { text: r.week },
-          { text: r.attendanceStatus, cls: attendanceClass(r.attendanceStatus) },
+          { text: cleanAttendanceLabel(r.attendanceStatus), cls: attendanceClass(r.attendanceStatus) },
           { text: r.period }
         ].filter((p) => p.text),
         right: r.progressPercent == null ? (r.needsWatch ? "들을 차시" : "") : `${r.progressPercent}%`,
@@ -965,7 +980,7 @@ async function loadTimetable() {
   const tt = state.timetable;
   if (!tt) {
     $("ttMeta").textContent = "";
-    $("ttWrap").textContent = "시간표가 없습니다.";
+    setTtPhoto(null, "시간표가 없습니다.");
     if ($("ttList")) $("ttList").replaceChildren();
     return;
   }
@@ -993,7 +1008,7 @@ async function loadTimetable() {
     if (e.data.h > 0) frame.style.height = `${e.data.h}px`;
   };
   window.addEventListener("message", state.ttMsgHandler);
-  $("ttWrap").replaceChildren(frame);
+  setTtPhoto(frame);
   paintTtList();
   if (state.ttTimer) clearInterval(state.ttTimer);
   state.ttTimer = setInterval(paintTtList, 30000);
@@ -1048,7 +1063,7 @@ function paintTtGrid(tt) {
     }
     table.appendChild(tr);
   }
-  $("ttWrap").replaceChildren(table);
+  setTtPhoto(table);
 }
 
 /**
@@ -1096,6 +1111,68 @@ function paintTtList() {
     -1,
     () => {}
   );
+}
+
+/**
+ * 시간표 사진 칸에 그림(또는 안내 문구)을 넣고, 그림이 있으면 확대 버튼을 얹는다.
+ * @param {HTMLElement | null} node - iframe 또는 격자
+ * @param {string} [emptyText] - 그림이 없을 때 문구
+ * @returns {void}
+ */
+function setTtPhoto(node, emptyText) {
+  const wrap = $("ttWrap");
+  if (!wrap) return;
+  wrap.replaceChildren();
+  wrap.classList.toggle("tt-zoomable", Boolean(node));
+  if (!node) {
+    wrap.textContent = emptyText || "시간표를 조회하세요.";
+    return;
+  }
+  wrap.appendChild(node);
+  const hit = document.createElement("button");
+  hit.type = "button";
+  hit.className = "tt-zoom-hit";
+  hit.title = "크게 보기";
+  hit.addEventListener("click", openTtLightbox);
+  wrap.appendChild(hit);
+}
+
+/**
+ * 시간표 사진을 전체 화면 가까이 확대한다.
+ * @returns {void}
+ */
+function openTtLightbox() {
+  const lb = $("ttLb");
+  const frame = $("ttLbFrame");
+  if (!lb || !frame || !state.timetable) return;
+  if (state.ttLbHandler) window.removeEventListener("message", state.ttLbHandler);
+  state.ttLbHandler = (e) => {
+    if (e.data?.type !== "tt-size" || e.source !== frame.contentWindow) return;
+    if (e.data.h > 0) frame.style.height = `${Math.max(320, e.data.h)}px`;
+  };
+  window.addEventListener("message", state.ttLbHandler);
+  frame.src = `/api/timetable.html?t=${Date.now()}`;
+  lb.classList.remove("hidden");
+  document.body.classList.add("tt-lb-open");
+}
+
+/**
+ * 시간표 확대를 닫는다.
+ * @returns {void}
+ */
+function closeTtLightbox() {
+  const lb = $("ttLb");
+  const frame = $("ttLbFrame");
+  if (lb) lb.classList.add("hidden");
+  if (frame) {
+    frame.src = "about:blank";
+    frame.style.height = "";
+  }
+  if (state.ttLbHandler) {
+    window.removeEventListener("message", state.ttLbHandler);
+    state.ttLbHandler = null;
+  }
+  document.body.classList.remove("tt-lb-open");
 }
 
 /**
@@ -1206,6 +1283,11 @@ function bind() {
   on("btnSum", "click", loadSummary);
   on("btnTt", "click", loadTimetable);
   on("btnTtDl", "click", downloadTimetable);
+  on("ttLbClose", "click", closeTtLightbox);
+  on("ttLbBg", "click", closeTtLightbox);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeTtLightbox();
+  });
   on("btnScore", "click", loadScores);
   on("btnRefresh", "click", refreshAll);
   on("btnLogout", "click", logout);

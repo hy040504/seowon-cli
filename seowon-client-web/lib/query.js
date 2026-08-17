@@ -554,7 +554,11 @@ export async function fetchSnapshot(client, student) {
                         week: l.scheduleTitle || "",
                         title: l.title || "",
                         period: l.period || "",
-                        attendanceStatus: l.attendanceStatus || "",
+                        attendanceStatus: String(l.attendanceStatus || "")
+                            .replace(/강의보기/g, "")
+                            .replace(/\s*[xX×]\s*$/g, "")
+                            .replace(/\s{2,}/g, " ")
+                            .trim(),
                         progressPercent: null,
                         lessonCntsId: l.lessonCntsId,
                         crsCreCd: c.crsCreCd
