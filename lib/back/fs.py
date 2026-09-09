@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from lib.seowon import (
     BASE_URL,
@@ -143,7 +144,7 @@ def session_save(path: str | Path, sess: Session) -> None:
     write_file(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 
 
-def result_save(path: str | Path, courses: list[CourseData], semester: str | None = None) -> dict:
+def result_save(path: str | Path, courses: list[CourseData], semester: str | None = None) -> dict[str, Any]:
     """최근 조회 결과를 result.json 에 쓴다."""
     if semester is None:
         semester = course_semester(courses)

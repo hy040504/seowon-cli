@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Theme:
+    """라이트/다크 색. 웹 style.css 변수와 같다."""
+
     name: str                   # light / dark
     blue: str                   # 포인트 파랑 (#3182F6)
     blue_hover: str             # 버튼 호버

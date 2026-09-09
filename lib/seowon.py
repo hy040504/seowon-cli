@@ -49,6 +49,7 @@ class SwError(Exception):
     """조회·로그인·파일 오류."""
 
     def __init__(self, message: str, code: int = SW_ERR) -> None:
+        """메시지와 오류 코드(SW_ERR_*)를 붙인다."""
         super().__init__(message)
         self.code = code
 

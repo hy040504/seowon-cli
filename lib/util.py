@@ -117,31 +117,37 @@ def url_encode(s: str) -> str:
 
 
 def form_encode(fields: list[tuple[str, str]]) -> str:
+    """폼 필드를 application/x-www-form-urlencoded 로 붙인다."""
     parts = [f"{url_encode(k)}={url_encode(v)}" for k, v in fields]
     return "&".join(parts)
 
 
 def read_file(path: str | Path) -> str:
+    """UTF-8 텍스트. 깨진 글자는 치환한다."""
     p = Path(path)
     return p.read_bytes().decode("utf-8", errors="replace")
 
 
 def write_file(path: str | Path, data: str) -> None:
+    """UTF-8 로 쓰고, 없는 폴더는 만든다."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(data.encode("utf-8"))
 
 
 def now_iso() -> str:
+    """로컬 시각 `YYYY-MM-DDTHH:MM:SS`."""
     t = datetime.now()
     return t.strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def local_ymdhms(y: int, mo: int, d: int, h: int, mi: int, s: int) -> float:
+    """로컬 달력 시각을 unix time 으로."""
     return time.mktime((y, mo, d, h, mi, s, 0, 0, -1))
 
 
 def _parse_one_date(s: str, end_of_day: bool) -> tuple[float, str] | None:
+    """문자열에서 날짜 하나를 읽고 (시각, 나머지) 를 돌린다."""
     p = s
     idx = p.find("20")
     while idx >= 0:
@@ -254,6 +260,7 @@ def enable_console() -> None:
 
 
 def read_line(prompt: str = "") -> str:
+    """한 줄 입력. EOF 면 빈 문자열."""
     try:
         return input(prompt).strip()
     except EOFError:
@@ -275,6 +282,7 @@ def read_password(prompt: str = "비밀번호: ") -> str:
     vis = len(prompt)
 
     def paint(reveal_last: bool) -> None:
+        """같은 줄을 다시 그려 * 또는 마지막 글자를 보여 준다."""
         nonlocal vis
         sys.stdout.write("\r" + prompt)
         n = len(chars)
@@ -316,20 +324,24 @@ def read_password(prompt: str = "비밀번호: ") -> str:
 
 
 def pause() -> None:
+    """메뉴로 돌아가기 전 Enter 를 기다린다."""
     read_line("\nEnter 키를 누르면 메뉴로 돌아갑니다. ")
 
 
 def sleep_ms(ms: int) -> None:
+    """밀리초 대기."""
     if ms > 0:
         time.sleep(ms / 1000.0)
 
 
 def term_clear() -> None:
+    """콘솔 화면을 지운다."""
     sys.stdout.write("\033[2J\033[H")
     sys.stdout.flush()
 
 
 def load_spin(total_speed: int, plus_text: str = "") -> None:
+    """한 구간의 로딩 막대. SeowonProject LoadSpin 을 따른다."""
     if total_speed <= 0:
         total_speed = 10
     download_speed = 10
@@ -347,6 +359,7 @@ def load_spin(total_speed: int, plus_text: str = "") -> None:
 
 
 def load_spin_step(current: int, total: int, plus_text: str = "") -> None:
+    """여러 과목을 돌 때 한 칸만 갱신한다."""
     cursor = "|/-\\"
     if total <= 0:
         total = 1
@@ -357,11 +370,13 @@ def load_spin_step(current: int, total: int, plus_text: str = "") -> None:
 
 
 def load_spin_done() -> None:
+    """로딩 줄을 지운다."""
     sys.stdout.write("\r                                                                  \r")
     sys.stdout.flush()
 
 
 def disappear_text(text: str) -> None:
+    """글자를 깜빡이며 보여 준 뒤 지운다."""
     if not text:
         text = ""
     for i in range(2):

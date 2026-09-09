@@ -57,15 +57,16 @@ class Backend:
     """조회·로그인을 같은 프로세스에서 수행한다."""
 
     def __init__(self) -> None:
-        self.demo = True
-        self.logged_in = False
-        self.student_id = ""
-        self.student_name = ""
-        self.dept_name = ""
-        self.dept_cd = ""
+        """데모 기본. login/fetch 때 App 을 다시 연다."""
+        self.demo: bool = True
+        self.logged_in: bool = False
+        self.student_id: str = ""
+        self.student_name: str = ""
+        self.dept_name: str = ""
+        self.dept_cd: str = ""
         self.data: dict[str, Any] = {"courses": [], "summary": []}
-        self.last_error = ""
-        self._app = App(ROOT, demo=True, quiet=True)
+        self.last_error: str = ""
+        self._app: App = App(ROOT, demo=True, quiet=True)
 
     def profile_label(self) -> str:
         """이름 (학번) · 학과. 칩·성공 카드에 쓴다."""
@@ -92,7 +93,10 @@ class Backend:
         path = testdata_dir() / "sample_result.json"
         if not path.is_file():
             raise BackendError("db/testdata/sample_result.json 이 없습니다.")
-        self.data = json.loads(path.read_text(encoding="utf-8"))
+        loaded: object = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise BackendError("sample_result.json 형식이 잘못되었습니다.")
+        self.data = loaded
         load_demo_profile(testdata_dir(), self._app.sess)
         self._sync_profile()
         self.logged_in = True
@@ -151,11 +155,17 @@ class Backend:
         if self._app.load_result() != SW_OK:
             path = ROOT / "db" / "result.json"
             if path.is_file():
-                self.data = json.loads(path.read_text(encoding="utf-8"))
+                loaded: object = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(loaded, dict):
+                    raise BackendError("result.json 형식이 잘못되었습니다.")
+                self.data = loaded
                 return self.data
             raise BackendError("저장된 결과가 없습니다.")
         _, rpath = config_paths(self._app.cfg)
-        self.data = json.loads(rpath.read_text(encoding="utf-8"))
+        loaded = json.loads(rpath.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise BackendError("result.json 형식이 잘못되었습니다.")
+        self.data = loaded
         return self.data
 
     def assignment_detail(self, course_i: int, assign_i: int) -> str:

@@ -8,15 +8,27 @@ from typing import Any
 
 from PyQt6.QtCore import (
     QEasingCurve,
+    QEvent,
     QPropertyAnimation,
     QRectF,
+    QSize,
     Qt,
     QThread,
     QTimer,
     QVariantAnimation,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap
+from PyQt6.QtGui import (
+    QColor,
+    QEnterEvent,
+    QFont,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPaintEvent,
+    QPen,
+    QPixmap,
+)
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QCheckBox,
@@ -49,10 +61,11 @@ class TossCheck(QCheckBox):
     """파란 칸 안에 V자 체크가 그려지는 토스형 체크박스."""
 
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+        """텍스트와 V자 진행도를 준비한다."""
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumHeight(26)
-        self._tick = 1.0 if self.isChecked() else 0.0
+        self._tick: float = 1.0 if self.isChecked() else 0.0
         self._anim = QVariantAnimation(self)
         self._anim.setDuration(170)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
@@ -60,22 +73,26 @@ class TossCheck(QCheckBox):
         self.toggled.connect(self._play)
 
     def _set_tick(self, value: object) -> None:
+        """애니메이션 값으로 V자를 다시 그린다."""
         self._tick = float(value)
         self.update()
 
     def _play(self, on: bool) -> None:
+        """켜고 끌 때 V자가 나타나거나 사라지게 한다."""
         self._anim.stop()
         self._anim.setStartValue(self._tick)
         self._anim.setEndValue(1.0 if on else 0.0)
         self._anim.start()
 
-    def sizeHint(self):  # noqa: N802
+    def sizeHint(self) -> QSize:  # noqa: N802
+        """체크 칸을 조금 키운 기본 크기."""
         hint = super().sizeHint()
         hint.setHeight(max(hint.height(), 26))
         hint.setWidth(hint.width() + 8)
         return hint
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent | None) -> None:  # noqa: N802
+        """기본 체크 그림 대신 네모 + V자만 그린다."""
         del event
         t = CURRENT
         painter = QPainter(self)
@@ -116,11 +133,12 @@ class TossSwitch(QAbstractButton):
     """토스 설정처럼 알약 트랙 위를 흰 원이 미끄러진다."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """알약 스위치. 원은 왼쪽(꺼짐)에서 시작한다."""
         super().__init__(parent)
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedSize(50, 30)
-        self._knob = 1.0 if self.isChecked() else 0.0
+        self._knob: float = 1.0 if self.isChecked() else 0.0
         self._anim = QVariantAnimation(self)
         self._anim.setDuration(180)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
@@ -128,16 +146,19 @@ class TossSwitch(QAbstractButton):
         self.toggled.connect(self._play)
 
     def _set_knob(self, value: object) -> None:
+        """원 위치를 바꾸고 다시 그린다."""
         self._knob = float(value)
         self.update()
 
     def _play(self, on: bool) -> None:
+        """켜면 오른쪽으로, 끄면 왼쪽으로 민다."""
         self._anim.stop()
         self._anim.setStartValue(self._knob)
         self._anim.setEndValue(1.0 if on else 0.0)
         self._anim.start()
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent | None) -> None:  # noqa: N802
+        """트랙 색을 섞고 흰 원을 그린다."""
         del event
         t = CURRENT
         painter = QPainter(self)
@@ -162,15 +183,17 @@ class SuccessMark(QWidget):
     """웹 로그인 성공과 같은 초록 원 테두리 + V자."""
 
     def __init__(self, parent: QWidget | None = None, size: int = 76) -> None:
+        """초록 원 테두리 크기."""
         super().__init__(parent)
         self.setFixedSize(size, size)
-        self._tick = 0.0
+        self._tick: float = 0.0
         self._anim = QVariantAnimation(self)
         self._anim.setDuration(450)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._anim.valueChanged.connect(self._set_tick)
 
     def _set_tick(self, value: object) -> None:
+        """원·V자 등장 진행도."""
         self._tick = float(value)
         self.update()
 
@@ -183,7 +206,8 @@ class SuccessMark(QWidget):
         self._anim.start()
         self.update()
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent | None) -> None:  # noqa: N802
+        """초록 원호를 그린 뒤 V자를 이어서 그린다."""
         del event
         t = CURRENT
         painter = QPainter(self)
@@ -209,25 +233,30 @@ class TossSpinner(QWidget):
     """끝이 둥근 파란 원호가 돌아가는 로딩 표시. PNG 가 없을 때 쓴다."""
 
     def __init__(self, parent: QWidget | None = None, size: int = 40) -> None:
+        """원호 스피너. PNG 가 없을 때 쓴다."""
         super().__init__(parent)
-        self._angle = 0
+        self._angle: int = 0
         self.setFixedSize(size, size)
         self._timer = QTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)
 
     def start(self) -> None:
+        """회전 타이머를 켠다."""
         if not self._timer.isActive():
             self._timer.start()
 
     def stop(self) -> None:
+        """회전 타이머를 끈다."""
         self._timer.stop()
 
     def _tick(self) -> None:
+        """각도를 조금 돌린다."""
         self._angle = (self._angle + 8) % 360
         self.update()
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent | None) -> None:  # noqa: N802
+        """바탕 원과 파란 원호를 그린다."""
         del event
         t = CURRENT
         painter = QPainter(self)
@@ -245,9 +274,10 @@ class AssetSpinner(QWidget):
     """웹 loading_e1.png 를 돌리는 스피너."""
 
     def __init__(self, parent: QWidget | None = None, size: int = 52) -> None:
+        """loading_e1.png 를 읽고 없으면 원호 스피너를 쓴다."""
         super().__init__(parent)
-        self._angle = 0
-        self._size = size
+        self._angle: int = 0
+        self._size: int = size
         self.setFixedSize(size, size)
         self._src = QPixmap(str(SPIN_PNG)) if SPIN_PNG.is_file() else QPixmap()
         self._timer = QTimer(self)
@@ -257,6 +287,7 @@ class AssetSpinner(QWidget):
         self._fallback.hide()
 
     def start(self) -> None:
+        """PNG 를 돌리거나 대체 스피너를 켠다."""
         if self._src.isNull():
             self._fallback.show()
             self._fallback.start()
@@ -265,15 +296,18 @@ class AssetSpinner(QWidget):
             self._timer.start()
 
     def stop(self) -> None:
+        """회전을 멈춘다."""
         self._timer.stop()
         self._fallback.stop()
         self._fallback.hide()
 
     def _tick(self) -> None:
+        """각도를 조금 돌린다."""
         self._angle = (self._angle + 8) % 360
         self.update()
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent | None) -> None:  # noqa: N802
+        """테마 색으로 칠한 PNG 를 회전해 그린다."""
         del event
         if self._src.isNull():
             return
@@ -300,6 +334,7 @@ class LoadingOverlay(QWidget):
     """웹 page-overlay 처럼 흐린 막 + 스피너 + 알약 메시지."""
 
     def __init__(self, parent: QWidget) -> None:
+        """부모 위에 깔 흐린 막과 스피너·알약을 만든다."""
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.hide()
@@ -325,15 +360,18 @@ class LoadingOverlay(QWidget):
         self.apply_theme(CURRENT)
 
     def apply_theme(self, theme: Theme) -> None:
+        """막 색을 라이트/다크에 맞춘다."""
         self.setStyleSheet(f"background: {theme.overlay};")
 
     def show_msg(self, text: str) -> None:
+        """알약 문구를 넣고 스피너를 켠다."""
         self.lab.setText(text)
         self.spin.start()
         self.show()
         self.raise_()
 
     def hide_msg(self) -> None:
+        """스피너를 끄고 막을 내린다."""
         self.spin.stop()
         self.hide()
 
@@ -342,6 +380,7 @@ class ToastBanner(QFrame):
     """웹 toast-banner. 오류·안내를 알림창 대신 위에 잠깐 띄운다."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """위쪽 안내 막. 처음엔 숨긴다."""
         super().__init__(parent)
         self.setObjectName("toast")
         self.setProperty("kind", "info")
@@ -361,6 +400,7 @@ class ToastBanner(QFrame):
         row.addWidget(self.msg, 1)
 
     def show_msg(self, text: str, err: bool = False) -> None:
+        """문구를 띄우고 잠깐 뒤 숨긴다."""
         self.msg.setText(text)
         self.icon.setText("⚠️" if err else "ℹ️")
         self.setProperty("kind", "error" if err else "info")
@@ -374,12 +414,14 @@ class Badge(QLabel):
     """상태 알약. kind: due / miss / done / watch / info / demo."""
 
     def __init__(self, text: str = "", kind: str = "info", parent: QWidget | None = None) -> None:
+        """상태 알약 글자와 색."""
         super().__init__(text, parent)
         self.setObjectName("badge")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.set_kind(kind)
 
     def set_kind(self, kind: str) -> None:
+        """due/miss/done/watch 색을 QSS property 로 바꾼다."""
         self.setProperty("kind", kind)
         _refresh(self)
 
@@ -402,6 +444,7 @@ class JobRow(QFrame):
         payload: Any = None,
         parent: QWidget | None = None,
     ) -> None:
+        """제목·메타·알약·액션 버튼을 한 줄에 놓는다."""
         super().__init__(parent)
         self.setObjectName("jobRow")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -453,14 +496,17 @@ class JobRow(QFrame):
         self.acted.emit(self)
 
     def set_selected(self, on: bool) -> None:
+        """선택 배경을 켠다."""
         self.setProperty("selected", on)
         _refresh(self)
 
     def set_hot(self, text: str) -> None:
+        """오른쪽 보조 글자(지금, 학습률)."""
         self.hot.setText(text)
         self.hot.setVisible(bool(text))
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:  # noqa: N802
+        """줄을 고른다."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self)
         super().mousePressEvent(event)
@@ -472,6 +518,7 @@ class EmptyState(QWidget):
     action_clicked = pyqtSignal()
 
     def __init__(self, icon: str, title: str, desc: str, action: str = "", parent: QWidget | None = None) -> None:
+        """아이콘·제목·설명·선택 버튼을 가운데 놓는다."""
         super().__init__(parent)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(28, 40, 28, 40)
@@ -510,6 +557,7 @@ class JobList(QFrame):
     row_acted = pyqtSignal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """빈 안내를 넣은 카드."""
         super().__init__(parent)
         self.setObjectName("jobList")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -526,14 +574,17 @@ class JobList(QFrame):
         self._box.addWidget(self._empty)
 
     def apply_shadow(self) -> None:
+        """테마 그림자를 다시 칠한다."""
         self._shadow.setBlurRadius(28)
         self._shadow.setOffset(0, 6)
         self._shadow.setColor(QColor(0, 0, 0, CURRENT.shadow_a))
 
     def selected(self) -> JobRow | None:
+        """지금 고른 행."""
         return self._selected
 
     def clear(self) -> None:
+        """헤더·행·빈 화면을 모두 지운다."""
         self._rows.clear()
         self._selected = None
         while self._box.count():
@@ -543,6 +594,7 @@ class JobList(QFrame):
                 w.deleteLater()
 
     def show_empty(self, icon: str, title: str, desc: str, action: str = "") -> None:
+        """빈 안내만 남긴다."""
         self.clear()
         empty = EmptyState(icon, title, desc, action)
         empty.action_clicked.connect(lambda: self.row_acted.emit(None))
@@ -550,21 +602,25 @@ class JobList(QFrame):
         self._box.addWidget(empty)
 
     def add_header(self, text: str) -> None:
+        """과목명 같은 구역 제목."""
         lab = QLabel(text)
         lab.setObjectName("jobTitle")
         lab.setContentsMargins(24, 18, 24, 8)
         self._box.addWidget(lab)
 
     def add_row(self, row: JobRow) -> None:
+        """행을 붙이고 클릭·액션을 연결한다."""
         row.clicked.connect(self._on_click)
         row.acted.connect(self.row_acted.emit)
         self._rows.append(row)
         self._box.addWidget(row)
 
     def finish(self) -> None:
+        """남는 공간을 밀어 카드 높이를 채운다."""
         self._box.addStretch(1)
 
     def _on_click(self, row: JobRow) -> None:
+        """한 줄만 선택한다."""
         if self._selected is not None:
             self._selected.set_selected(False)
         self._selected = row
@@ -578,6 +634,7 @@ class FeatureCard(QFrame):
     clicked = pyqtSignal()
 
     def __init__(self, icon: str, title: str, sub: str, action: str, variant: str = "surface", parent: QWidget | None = None) -> None:
+        """홈/현황용 큰 카드. variant 는 blue/dark/surface."""
         super().__init__(parent)
         names = {"blue": "featBlue", "dark": "featDark", "surface": "featSurface"}
         self.setObjectName(names.get(variant, "featSurface"))
@@ -611,7 +668,8 @@ class FeatureCard(QFrame):
         lay.addStretch(1)
         lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignRight)
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:  # noqa: N802
+        """카드 전체를 누를 수 있게 한다."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
@@ -621,6 +679,7 @@ class StatBox(QFrame):
     """현황 숫자 칸. 웹 score-stat-box."""
 
     def __init__(self, label: str, parent: QWidget | None = None) -> None:
+        """라벨과 숫자 칸."""
         super().__init__(parent)
         self.setObjectName("statBox")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -641,6 +700,7 @@ class NavButton(QPushButton):
     """사이드바 메뉴. 접으면 이모지, 펼치면 글자."""
 
     def __init__(self, emoji: str, label: str, parent: QWidget | None = None) -> None:
+        """이모지 + 글자. 접으면 글자를 숨긴다."""
         super().__init__(parent)
         self.setObjectName("navBtn")
         self.setCheckable(True)
@@ -663,6 +723,7 @@ class NavButton(QPushButton):
         lay.addStretch(1)
 
     def set_expanded(self, on: bool) -> None:
+        """펼치면 글자를 보이고 너비를 늘린다."""
         self.lab.setVisible(on)
         if on:
             self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -682,11 +743,12 @@ class Sidebar(QWidget):
     EXPANDED = 236
 
     def __init__(self, items: list[tuple[str, str]], parent: QWidget | None = None) -> None:
+        """접힌 아이콘 바와 메뉴·칩·로그아웃."""
         super().__init__(parent)
         self.setObjectName("sidebar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedWidth(self.COLLAPSED)
-        self._expanded = False
+        self._expanded: bool = False
         self._leave = QTimer(self)
         self._leave.setSingleShot(True)
         self._leave.timeout.connect(self._collapse)
@@ -772,20 +834,24 @@ class Sidebar(QWidget):
         self.logout_btn.hide()
         self.lay.addWidget(self.logout_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-    def enterEvent(self, event) -> None:  # noqa: N802
+    def enterEvent(self, event: QEnterEvent | None) -> None:  # noqa: N802
+        """마우스가 들어오면 펼친다."""
         self._leave.stop()
         self._expand()
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:  # noqa: N802
+    def leaveEvent(self, event: QEvent | None) -> None:  # noqa: N802
+        """잠깐 뒤 접는다."""
         self._leave.start(140)
         super().leaveEvent(event)
 
     def _on_width(self, value: object) -> None:
+        """애니메이션 너비를 고정 폭에 반영한다."""
         w = int(value) if not isinstance(value, int) else value
         self.setFixedWidth(max(self.COLLAPSED, w))
 
     def _expand(self) -> None:
+        """236px 로 늘리고 글자를 켠다."""
         if self._expanded:
             return
         self._expanded = True
@@ -797,6 +863,7 @@ class Sidebar(QWidget):
         self.setMaximumWidth(self.EXPANDED)
 
     def _collapse(self) -> None:
+        """64px 로 줄이고 글자를 끈다."""
         if not self._expanded:
             return
         self._expanded = False
@@ -808,6 +875,7 @@ class Sidebar(QWidget):
         self.setMaximumWidth(self.EXPANDED)
 
     def _set_labels(self, on: bool) -> None:
+        """로고·글자·칩·버튼 정렬을 접힘에 맞춘다."""
         self.logo.setVisible(not on)
         self.brand_text.setVisible(on)
         self.brand_sub.setVisible(on)
@@ -825,15 +893,18 @@ class Sidebar(QWidget):
             self.chip.setMinimumHeight(44)
 
     def set_current(self, index: int) -> None:
+        """지금 페이지 메뉴만 체크한다."""
         for i, btn in enumerate(self.nav_btns):
             btn.setChecked(i == index)
 
     def set_profile(self, name: str, sub: str, letter: str) -> None:
+        """아래 칩의 이름·보조·이니셜."""
         self.chip_name.setText(name)
         self.chip_sub.setText(sub)
         self.avatar.setText(letter)
 
     def set_logged_in(self, on: bool) -> None:
+        """로그아웃 버튼을 보여 준다."""
         self.logout_btn.setVisible(on)
 
 
@@ -844,10 +915,12 @@ class FnThread(QThread):
     err = pyqtSignal(str)
 
     def __init__(self, fn: Callable[[], Any]) -> None:
+        """백그라운드에서 실행할 함수."""
         super().__init__()
         self._fn = fn
 
     def run(self) -> None:
+        """GUI 스레드 밖에서 fn 을 돌리고 ok/err 를 보낸다."""
         try:
             self.ok.emit(self._fn())
         except BackendError as e:

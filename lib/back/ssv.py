@@ -10,6 +10,7 @@ EMPTY = "\x03"
 class SsvBuf:
     """Nexacro SSV 요청 본문."""
     def __init__(self) -> None:
+        """빈 버퍼."""
         self.parts: list[str] = []
 
     def begin(self) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from lib.seowon import (
     ASSIGN_LIST,
@@ -77,43 +78,50 @@ _FORM = "application/x-www-form-urlencoded; charset=UTF-8"
 class App:
     """로그인 · 과제/이러닝 조회 · JSON 저장. TUI·GUI 가 같이 쓴다."""
     def __init__(self, root: str | Path, demo: bool = False, quiet: bool = False) -> None:
+        """작업 폴더와 데모/조용 모드. HTTP 는 boot 에서 다시 연다."""
         self.root = Path(root)
-        self.demo = demo
-        self.quiet = quiet
+        self.demo: bool = demo
+        self.quiet: bool = quiet
         self.cfg: Config = config_default()
-        self.sess = Session()
-        self.http = HttpClient()
+        self.sess: Session = Session()
+        self.http: HttpClient = HttpClient()
         self.courses: list[CourseData] = []
-        self.logged_in = False
+        self.logged_in: bool = False
         self.testdata_dir = find_testdata(self.root)
-        self.last_error = ""
+        self.last_error: str = ""
         try:
             self.http.init(self.cfg.base_url)
         except Exception:
             pass
 
     def _say_ok(self, msg: str) -> None:
+        """quiet 가 아니면 성공 줄을 찍는다."""
         if not self.quiet:
             ui_ok(msg)
 
     def _say_err(self, msg: str) -> None:
+        """last_error 를 남기고, quiet 가 아니면 오류를 찍는다."""
         self.last_error = msg
         if not self.quiet:
             ui_err(msg)
 
     def _say_info(self, msg: str) -> None:
+        """quiet 가 아니면 안내를 찍는다."""
         if not self.quiet:
             ui_info(msg)
 
     def _say_warn(self, msg: str) -> None:
+        """quiet 가 아니면 경고를 찍는다."""
         if not self.quiet:
             ui_warn(msg)
 
     def _spin(self, speed: int, text: str) -> None:
+        """quiet 가 아니면 로딩 막대를 돌린다."""
         if not self.quiet:
             load_spin(speed, text)
 
     def _demo_read(self, name: str) -> str:
+        """db/testdata 의 고정 응답 파일."""
         return read_file(Path(self.testdata_dir) / name)
 
     def _post_form(self, path: str, fields: list[tuple[str, str]], referer: str | None = None) -> str:
@@ -122,6 +130,7 @@ class App:
         return html
 
     def boot(self) -> int:
+        """config · login.json · 저장 세션을 읽는다. 만료면 다시 로그인한다."""
         try:
             self.cfg = config_load(self.root / "config.json")
         except Exception:
@@ -158,6 +167,7 @@ class App:
         return SW_OK
 
     def try_session(self) -> int:
+        """쿠키로 과목 목록을 열어 세션이 살아 있는지 본다."""
         if self.demo:
             self.logged_in = True
             return SW_OK
@@ -168,6 +178,7 @@ class App:
         return SW_ERR_SESSION
 
     def ensure_auth(self) -> int:
+        """로그인되어 있지 않으면 세션 재사용 또는 입력을 받는다."""
         if self.logged_in:
             return SW_OK
         if self.demo:
@@ -178,6 +189,7 @@ class App:
         return self.login_interactive()
 
     def login_interactive(self) -> int:
+        """login.json 이 완전하면 그걸로, 아니면 학번·비밀번호를 묻는다."""
         if self.demo:
             return self.login_with("", "")
         try:
@@ -200,6 +212,7 @@ class App:
         return self.login_with(sid, pw)
 
     def login_with(self, sid: str, pw: str) -> int:
+        """NICE encryptData 로 로그인하고 sugangh 에서 이름·학과를 채운다."""
         if self.demo:
             self.sess.student_id = sid or self.cfg.last_student_id or "20241234"
             self.sess.user_no = self.sess.student_id
@@ -267,6 +280,7 @@ class App:
         return SW_OK
 
     def fetch_courses(self) -> int:
+        """수강 과목 목록. 데모는 testdata/courses.html."""
         try:
             if self.demo:
                 html = self._demo_read("courses.html")
@@ -290,6 +304,7 @@ class App:
         return SW_OK
 
     def _fetch_one_assignments(self, c: CourseData) -> int:
+        """한 과목의 과제 목록."""
         if c.fetched_asg:
             return SW_OK
         try:
@@ -322,6 +337,7 @@ class App:
         return SW_OK
 
     def _fetch_one_lessons(self, c: CourseData) -> int:
+        """한 과목의 이러닝 차시."""
         if c.fetched_les:
             return SW_OK
         try:
@@ -359,6 +375,7 @@ class App:
         return SW_OK
 
     def fetch_assignments(self, all_courses: bool = True) -> int:
+        """전 과목(또는 첫 과목) 과제를 모은다."""
         if not self.courses and self.fetch_courses() != SW_OK:
             return SW_ERR
         ok = 0
@@ -376,6 +393,7 @@ class App:
         return SW_OK if ok else SW_ERR
 
     def fetch_lessons(self, all_courses: bool = True) -> int:
+        """전 과목(또는 첫 과목) 이러닝을 모은다."""
         if not self.courses and self.fetch_courses() != SW_OK:
             return SW_ERR
         ok = 0
@@ -393,6 +411,7 @@ class App:
         return SW_OK if ok else SW_ERR
 
     def fetch_assignment_detail(self, ci: int, ai: int) -> str:
+        """고른 과제 본문. 제출은 하지 않는다."""
         if ci >= len(self.courses) or ai >= len(self.courses[ci].assignments):
             raise IndexError("assignment")
         a = self.courses[ci].assignments[ai]
@@ -409,6 +428,7 @@ class App:
         return parse_assignment_detail(html)
 
     def fetch_progress(self, ci: int, li: int) -> int:
+        """고른 차시 학습률(%). 시청 기록은 보내지 않는다."""
         if ci >= len(self.courses) or li >= len(self.courses[ci].lessons):
             raise IndexError("lesson")
         l = self.courses[ci].lessons[li]
@@ -433,12 +453,14 @@ class App:
         return pct
 
     def save_result(self) -> int:
+        """result.json 에 지금 조회 결과를 쓴다."""
         _, rpath = config_paths(self.cfg)
         Path(self.cfg.data_dir).mkdir(parents=True, exist_ok=True)
         result_save(rpath, self.courses, course_semester(self.courses))
         return SW_OK
 
     def load_result(self) -> int:
+        """result.json 을 다시 읽는다."""
         _, rpath = config_paths(self.cfg)
         try:
             self.courses, _sem = result_load(rpath)
@@ -446,6 +468,7 @@ class App:
             return SW_ERR_IO
         return SW_OK
 
-    def result_dict(self) -> dict:
+    def result_dict(self) -> dict[str, Any]:
+        """GUI 가 그리는 courses/summary JSON."""
         _, rpath = config_paths(self.cfg)
         return result_save(rpath, self.courses, course_semester(self.courses))

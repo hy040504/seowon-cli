@@ -14,6 +14,8 @@ from lib.seowon import BASE_URL, HOST, USER_AGENT, Cookie
 
 @dataclass
 class HttpClient:
+    """urllib HTTPS. 쿠키는 직접 들고 e-campus 세션을 유지한다."""
+
     host: str = HOST
     port: int = 443
     https: bool = True

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from PyQt6.QtCore import QEvent, QObject, QSettings, Qt, QUrl
-from PyQt6.QtGui import QColor, QDesktopServices
+from PyQt6.QtGui import QCloseEvent, QColor, QDesktopServices, QShowEvent
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
     """왼쪽 내비 + 오른쪽 페이지. 조회는 백그라운드 스레드에서 돌린다."""
 
     def __init__(self) -> None:
+        """사이드바·페이지·테마를 만들고 login.json 을 채운다."""
         super().__init__()
         self.backend = Backend()
         self._th: FnThread | None = None
@@ -145,16 +146,19 @@ class MainWindow(QMainWindow):
         self.apply_theme(DARK if dark else LIGHT)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        """창 크기가 바뀌면 로딩 막을 다시 맞춘다."""
         if obj is self.centralWidget() and event.type() == QEvent.Type.Resize:
             self.overlay.setGeometry(self.centralWidget().rect())
         return super().eventFilter(obj, event)
 
-    def showEvent(self, event) -> None:  # noqa: N802
+    def showEvent(self, event: QShowEvent | None) -> None:  # noqa: N802
+        """처음 보일 때 로딩 막 크기를 맞춘다."""
         super().showEvent(event)
         if self.centralWidget() is not None:
             self.overlay.setGeometry(self.centralWidget().rect())
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event: QCloseEvent | None) -> None:  # noqa: N802
+        """돌아가는 조회가 있으면 잠시 기다린다."""
         if self._th is not None and self._th.isRunning():
             self._th.wait(4000)
         super().closeEvent(event)
@@ -186,6 +190,7 @@ class MainWindow(QMainWindow):
         return wrap
 
     def apply_theme(self, theme: Theme) -> None:
+        """라이트/다크를 창 전체에 입히고 설정을 기억한다."""
         set_current(theme)
         self.setStyleSheet(qss(theme))
         self.overlay.apply_theme(theme)
@@ -202,9 +207,11 @@ class MainWindow(QMainWindow):
         self.update()
 
     def _on_theme_toggled(self, dark: bool) -> None:
+        """설정 스위치를 켤 때 다크, 끌 때 라이트."""
         self.apply_theme(DARK if dark else LIGHT)
 
     def _page(self, title: str, caption: str) -> tuple[QWidget, QVBoxLayout]:
+        """과제·이러닝·현황·설정 공통 머리글."""
         w = QWidget()
         w.setObjectName("canvas")
         v = QVBoxLayout(w)
@@ -220,6 +227,7 @@ class MainWindow(QMainWindow):
         return w, v
 
     def _toolbar(self, *widgets: QWidget) -> QHBoxLayout:
+        """필터 + 조회 버튼 한 줄."""
         bar = QHBoxLayout()
         bar.setSpacing(8)
         for i, w in enumerate(widgets):
@@ -227,14 +235,16 @@ class MainWindow(QMainWindow):
         bar.addStretch(1)
         return bar
 
-    def _primary(self, text: str, slot) -> QPushButton:
+    def _primary(self, text: str, slot: Callable[..., object]) -> QPushButton:
+        """파란 기본 버튼."""
         btn = QPushButton(text)
         btn.setObjectName("primary")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(slot)
         return btn
 
-    def _ghost(self, text: str, slot) -> QPushButton:
+    def _ghost(self, text: str, slot: Callable[..., object]) -> QPushButton:
+        """테두리 있는 보조 버튼."""
         btn = QPushButton(text)
         btn.setObjectName("ghost")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -242,6 +252,7 @@ class MainWindow(QMainWindow):
         return btn
 
     def _build_login(self) -> QWidget:
+        """로그인 입력 카드와 성공 카드를 겹쳐 둔다."""
         w = QWidget()
         w.setObjectName("canvas")
         outer = QVBoxLayout(w)
@@ -260,6 +271,7 @@ class MainWindow(QMainWindow):
         return w
 
     def _build_login_form(self) -> QWidget:
+        """학번·비밀번호 입력 카드."""
         card = self._card()
         inner = QVBoxLayout(card)
         inner.setContentsMargins(28, 28, 28, 24)
@@ -314,6 +326,7 @@ class MainWindow(QMainWindow):
         return card
 
     def _build_login_success(self) -> QWidget:
+        """로그인 성공 뒤 바꾸는 Successful! 카드."""
         card = self._card()
         inner = QVBoxLayout(card)
         inner.setContentsMargins(32, 36, 32, 28)
@@ -348,19 +361,23 @@ class MainWindow(QMainWindow):
         return card
 
     def _goto(self, index: int) -> None:
+        """왼쪽 메뉴와 페이지를 같이 옮긴다."""
         self.sidebar.set_current(index)
         self.stack.setCurrentIndex(index)
 
     def _show_login_form(self) -> None:
+        """성공 카드에서 입력 카드로 돌아간다."""
         self.login_stack.setCurrentIndex(0)
 
     def _show_login_success(self, who: str, subtitle: str) -> None:
+        """알림창 대신 성공 카드로 화면을 바꾼다."""
         self.ok_who.setText(who)
         self.ok_sub.setText(subtitle)
         self.login_stack.setCurrentIndex(1)
         self.ok_mark.play()
 
     def _build_todo(self) -> QWidget:
+        """지금 할 것 페이지."""
         inner, v = self._page("지금 할 것", "기간 안 미제출 과제와 들어야 할 이러닝을 과목별로 모읍니다.")
         self.todo_filter = QComboBox()
         self.todo_filter.addItems(["전체 항목 (이러닝+과제)", "📝 과제만", "💻 이러닝만"])
@@ -389,6 +406,7 @@ class MainWindow(QMainWindow):
         return self._scroll_page(inner)
 
     def _build_assignments(self) -> QWidget:
+        """과제 목록·상세."""
         inner, v = self._page("과제", "기간과 제출 상태를 한 번에 봅니다. 제출은 하지 않습니다.")
         self.asg_filter = QComboBox()
         self.asg_filter.addItems(["전체 과제", "지금 할 수 있는 과제", "미제출 · 진행중"])
@@ -412,6 +430,7 @@ class MainWindow(QMainWindow):
         return self._scroll_page(inner)
 
     def _build_lessons(self) -> QWidget:
+        """이러닝 차시 목록."""
         inner, v = self._page("이러닝", "차시 출결과 들어야 할 강의를 모읍니다. 학습률은 조회만 합니다.")
         self.les_filter = QComboBox()
         self.les_filter.addItems(["차시 목록", "들을 차시"])
@@ -424,6 +443,7 @@ class MainWindow(QMainWindow):
         return self._scroll_page(inner)
 
     def _build_summary(self) -> QWidget:
+        """과목별 미제출·미완료 카드."""
         inner, v = self._page("현황", "과목별 미제출 과제와 미완료 이러닝을 한눈에 봅니다.")
         v.addWidget(self._primary("과목별 모아 보기", self.refresh_summary), 0, Qt.AlignmentFlag.AlignLeft)
 
@@ -446,6 +466,7 @@ class MainWindow(QMainWindow):
         return self._scroll_page(inner)
 
     def _build_settings(self) -> QWidget:
+        """다크 모드 스위치와 결과 저장."""
         inner, v = self._page("설정", "화면 테마와 조회 파일을 여기서 바꿉니다.")
 
         theme_card = self._card()
@@ -489,6 +510,7 @@ class MainWindow(QMainWindow):
         return self._scroll_page(inner)
 
     def _build_info(self) -> QWidget:
+        """조회 전용 안내와 관련 저장소."""
         inner, v = self._page("프로그램 정보", f"seowon-cli  v{VERSION}  ·  조회 전용 Python 클라이언트")
 
         notice = QFrame()
@@ -563,6 +585,7 @@ class MainWindow(QMainWindow):
         return self._scroll_page(inner)
 
     def _fill_login_from_file(self) -> None:
+        """login.json 값을 입력칸에 미리 넣는다."""
         sid, pw = load_login_file()
         if sid:
             self.id_edit.setText(sid)
@@ -576,6 +599,7 @@ class MainWindow(QMainWindow):
             self.login_file_hint.setText("login.json 이 비어 있습니다. 학번과 비밀번호를 입력하세요.")
 
     def _apply_profile_chip(self) -> None:
+        """왼쪽 아래 이름 칩을 고친다."""
         if not self.backend.logged_in:
             self.sidebar.set_profile("로그인 전", "세션 없음", "?")
             self.sidebar.set_logged_in(False)
@@ -591,6 +615,7 @@ class MainWindow(QMainWindow):
         self.toast.show_msg(msg, err)
 
     def _busy(self, message: str, fn: Callable[[], Any], done: Callable[[Any], None]) -> None:
+        """스피너를 띄운 채 fn 을 백그라운드에서 돌린다."""
         if self._th is not None and self._th.isRunning():
             return
         self.overlay.setGeometry(self.centralWidget().rect())
@@ -603,12 +628,14 @@ class MainWindow(QMainWindow):
         th.start()
 
     def _on_thread_finished(self) -> None:
+        """끝난 스레드 손잡이를 비운다."""
         th = self._th
         self._th = None
         if th is not None:
             th.deleteLater()
 
     def _busy_ok(self, result: Any, done: Callable[[Any], None]) -> None:
+        """작업이 끝나면 스피너를 내리고 화면을 갱신한다."""
         self.overlay.hide_msg()
         try:
             done(result)
@@ -616,20 +643,24 @@ class MainWindow(QMainWindow):
             self._alert(str(e), True)
 
     def _busy_err(self, msg: str) -> None:
+        """작업이 실패하면 스피너를 내리고 이유를 보여 준다."""
         self.overlay.hide_msg()
         self._alert(msg, True)
 
     def _ensure_data(self, then: Callable[[], None], message: str = "불러오는 중") -> None:
+        """아직 조회 결과가 없으면 먼저 fetch 한 뒤 then 을 부른다."""
         if self.backend.data.get("courses"):
             then()
             return
 
-        def work() -> dict:
+        def work() -> dict[str, Any]:
+            """과제·이러닝을 한 번에 가져온다."""
             return self.backend.fetch()
 
         self._busy(message, work, lambda _: then())
 
     def on_login(self) -> None:
+        """로그인 버튼. 조회는 백그라운드 스레드에서 돈다."""
         sid = self.id_edit.text().strip()
         pw = self.pw_edit.text()
         demo = self.demo_chk.isChecked()
@@ -642,12 +673,14 @@ class MainWindow(QMainWindow):
             self._alert("학번과 비밀번호를 입력하거나 login.json 을 채워 주세요.", True)
             return
 
-        def work() -> dict:
+        def work() -> dict[str, Any]:
+            """학번·비밀번호로 로그인한다."""
             return self.backend.login(sid, pw, demo)
 
         self._busy("로그인하는 중", work, self._after_login)
 
     def _after_login(self, _out: Any) -> None:
+        """로그인 성공 카드로 바꾼다."""
         self.pw_edit.clear()
         who = self.backend.profile_label()
         tag = "데모 모드로 들어왔어요" if self.backend.demo else "과제·이러닝 메뉴에서 조회하세요"
@@ -656,14 +689,17 @@ class MainWindow(QMainWindow):
         self._show_login_success(who, tag)
 
     def on_session(self) -> None:
+        """저장된 세션으로 접속한다."""
         if self.demo_chk.isChecked():
             self.on_login()
             return
 
         def work() -> bool:
+            """session.json 쿠키를 시험한다."""
             return self.backend.try_session()
 
         def done(ok: Any) -> None:
+            """세션이 살아 있으면 성공 카드를 연다."""
             if not ok:
                 self._alert("세션이 없거나 만료되었습니다. 다시 로그인하세요.", True)
                 return
@@ -685,9 +721,11 @@ class MainWindow(QMainWindow):
         self._goto(0)
 
     def refresh_todo(self) -> None:
+        """지금 할 일 조회."""
         self._ensure_data(self._fill_todo, "지금 할 일을 불러오는 중")
 
     def _fill_todo(self) -> None:
+        """기간 안 미제출 과제와 들을 차시를 카드로 넣는다."""
         mode = self.todo_filter.currentIndex()  # 0 전체, 1 과제, 2 이러닝
         self.todo_list.clear()
         due_n = 0
@@ -751,6 +789,7 @@ class MainWindow(QMainWindow):
         self.todo_summary.show()
 
     def _todo_act(self, row: JobRow) -> None:
+        """할 일 카드의 상세/% 버튼."""
         payload = row.payload or {}
         if payload.get("kind") == "asg":
             self._goto(2)
@@ -764,18 +803,22 @@ class MainWindow(QMainWindow):
             self._goto(3)
 
             def work() -> int:
+                """고른 차시 학습률."""
                 return self.backend.lesson_progress(int(payload["ci"]), int(payload["li"]))
 
             def done(pct: Any) -> None:
+                """학습률을 행에 반영한다."""
                 row.set_hot(f"{pct}%")
                 self._alert(f"학습률 {pct}%  (자동 시청 없음)")
 
             self._busy("학습률을 조회하는 중", work, done)
 
     def refresh_assignments(self) -> None:
+        """과제 조회."""
         self._ensure_data(self._fill_assignments, "과제를 불러오는 중")
 
     def _fill_assignments(self) -> None:
+        """필터에 맞는 과제 행을 카드에 넣는다."""
         mode = self.asg_filter.currentIndex()
         self.asg_list.clear()
         n = 0
@@ -806,6 +849,7 @@ class MainWindow(QMainWindow):
             self.asg_list.finish()
 
     def show_assignment_detail(self) -> None:
+        """고른 과제 상세."""
         row = self.asg_list.selected()
         if row is None or not isinstance(row.payload, dict):
             self._alert("과제를 먼저 고르세요.", True)
@@ -818,14 +862,17 @@ class MainWindow(QMainWindow):
             return
 
         def work() -> str:
+            """과제 본문을 가져온다."""
             return self.backend.assignment_detail(ci, ai)
 
         self._busy("과제 상세를 불러오는 중", work, lambda text: self.asg_detail.setPlainText(text))
 
     def refresh_lessons(self) -> None:
+        """이러닝 조회."""
         self._ensure_data(self._fill_lessons, "이러닝을 불러오는 중")
 
     def _fill_lessons(self) -> None:
+        """차시 행을 카드에 넣는다."""
         only_watch = self.les_filter.currentIndex() == 1
         self.les_list.clear()
         n = 0
@@ -854,6 +901,7 @@ class MainWindow(QMainWindow):
             self.les_list.finish()
 
     def show_progress(self) -> None:
+        """고른 차시 학습률."""
         row = self.les_list.selected()
         if row is None or not isinstance(row.payload, dict):
             self._alert("차시를 먼저 고르세요.", True)
@@ -866,18 +914,22 @@ class MainWindow(QMainWindow):
             return
 
         def work() -> int:
+            """학습률만 조회한다. 시청 기록 없음."""
             return self.backend.lesson_progress(ci, li)
 
         def done(pct: Any) -> None:
+            """진행 % 를 행에 쓰고 토스트를 띄운다."""
             row.set_hot(f"{pct}%")
             self._alert(f"학습률 {pct}%  (자동 시청 없음)")
 
         self._busy("학습률을 조회하는 중", work, done)
 
     def refresh_summary(self) -> None:
+        """현황 한 표."""
         self._ensure_data(self._fill_summary, "현황을 모으는 중")
 
     def _clear_sum_grid(self) -> None:
+        """과목 카드를 비운다."""
         while self.sum_grid.count():
             item = self.sum_grid.takeAt(0)
             w = item.widget()
@@ -885,6 +937,7 @@ class MainWindow(QMainWindow):
                 w.deleteLater()
 
     def _fill_summary(self) -> None:
+        """과목별 미제출·미완료 수를 채운다."""
         summary = list(self.backend.data.get("summary") or [])
         if not summary:
             for course in self.backend.data.get("courses") or []:
@@ -918,7 +971,9 @@ class MainWindow(QMainWindow):
             self.sum_grid.addWidget(card, i // 2, i % 2)
 
     def save_result(self) -> None:
+        """조회 결과를 result.json 에 저장한다."""
         def work() -> str:
+            """없으면 조회한 뒤 저장 경로를 돌린다."""
             if not self.backend.data.get("courses"):
                 self.backend.fetch()
             return str(self.backend.save_result_copy())
@@ -926,10 +981,13 @@ class MainWindow(QMainWindow):
         self._busy("저장하는 중", work, lambda path: self._alert(f"저장했습니다.  {path}"))
 
     def load_result(self) -> None:
-        def work() -> dict:
+        """저장해 둔 조회 결과를 다시 그린다."""
+        def work() -> dict[str, Any]:
+            """result.json 을 읽는다."""
             return self.backend.load_saved()
 
         def done(_: Any) -> None:
+            """과제·이러닝·현황·할 일을 다시 그린다."""
             self._fill_summary()
             self._fill_assignments()
             self._fill_lessons()

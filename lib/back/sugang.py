@@ -69,6 +69,7 @@ def load_demo_profile(testdata_dir: str | Path, sess: Session) -> None:
 def _fill_from_ssv(body: str, sess: Session) -> None:
     """SSV 응답에서 이름·학번·학과를 채운다."""
     def get(ds: str, col: str) -> str:
+        """데이터셋 열. 없으면 빈 문자열."""
         try:
             return ssv_field(body, ds, col)
         except ValueError:
