@@ -5,26 +5,31 @@
 </p>
 
 <p align="center">
-  로그인 한 번으로 <b>지금 할 과제</b>와 <b>들어야 할 이러닝</b>을 표로 봅니다.
+  로그인 한 번으로 <b>지금 할 과제</b>와 <b>들어야 할 이러닝</b>을 한곳에 모읍니다.
 </p>
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
-  <img alt="PyQt6" src="https://img.shields.io/badge/GUI-PyQt6-3776AB?logo=qt&logoColor=white">
+  <img alt="PyQt6" src="https://img.shields.io/badge/GUI-PyQt6-41CD52?logo=qt&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10+-0078D6?logo=windows&logoColor=white">
   <img alt="Storage" src="https://img.shields.io/badge/storage-JSON_only-F7DF1E">
+  <img alt="Query only" src="https://img.shields.io/badge/mode-조회_전용-3182F6">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
-  <img alt="Query only" src="https://img.shields.io/badge/mode-조회_전용-informational">
 </p>
 
 <p align="center">
   <a href="https://github.com/hy040504/seowon-cli">hy040504/seowon-cli</a>
+  ·
+  <a href="https://github.com/hy040504/seowon-client-web">웹</a>
+  ·
+  <a href="https://github.com/hy040504/seowon-client-api">API</a>
 </p>
 
 공식 SDK가 아닙니다. 수업용 **조회 전용** 도구입니다.  
 과제 제출, 이러닝 자동 시청, 출석 처리, 수강신청은 넣지 않습니다.
 
-브라우저로 여러 학생이 쓰려면 별도 저장소 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 켭니다.
+브라우저로 여러 학생이 쓰려면 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 켭니다.  
+이 저장소의 GUI 색·카드·사이드바는 그 웹과 같은 토스 톤입니다.
 
 ```text
 ============================================
@@ -45,15 +50,36 @@
 
 ---
 
+## 목차
+
+- [이 저장소에 있는 것](#이-저장소에-있는-것)
+- [왜 쓰나](#왜-쓰나)
+- [빠른 시작](#빠른-시작)
+- [TUI 메뉴](#tui-메뉴)
+- [GUI](#gui)
+- [관련 저장소](#관련-저장소)
+- [구조](#구조)
+- [저장 파일](#저장-파일)
+- [요청 흐름](#요청-흐름)
+- [하지 않는 것](#하지-않는-것)
+- [변경 사항](#변경-사항)
+- [라이선스](#라이선스)
+
+---
+
 ## 이 저장소에 있는 것
 
 | | TUI | GUI |
 | --- | :---: | :---: |
 | 실행 | `python seowon_tui.py` | `python seowon_gui.py` |
 | 과제 · 이러닝 조회 | O | O |
+| 지금 할 것 (기간 안 미제출 + 들을 차시) | `2→2` / `3→2` | 메뉴 한 화면 |
 | 현황 한 표 | O | O |
 | 오프라인 데모 | `--demo` | `--demo` |
+| 라이트 / 다크 | — | 설정 스위치 |
 | 과제 제출 · 자료 받기 | — | — |
+
+TUI와 GUI는 **같은 Python 조회 엔진** (`lib/back`) 을 씁니다. 컴파일러나 실행 파일은 필요 없습니다.
 
 ---
 
@@ -62,13 +88,13 @@
 e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있습니다.  
 이 프로그램은 로그인 한 번으로 전 과목을 모아 **지금 할 일**만 보여 줍니다.
 
-| 보고 싶은 것 | TUI 메뉴 |
-| --- | --- |
-| 기간 안 미제출 과제 | `2` → `2` |
-| 미제출·진행중 전수 | `2` → `3` |
-| 들을 이러닝 차시 | `3` → `2` |
-| 과목별 미제출 + 미완료 | `4` |
-| 고른 차시 학습률(%) | `3` → `3` |
+| 보고 싶은 것 | TUI | GUI |
+| --- | --- | --- |
+| 기간 안 미제출 과제 | `2` → `2` | 지금 할 것 / 과제 필터 |
+| 미제출·진행중 전수 | `2` → `3` | 과제 → 미제출 · 진행중 |
+| 들을 이러닝 차시 | `3` → `2` | 지금 할 것 / 이러닝 필터 |
+| 과목별 미제출 + 미완료 | `4` | 현황 |
+| 고른 차시 학습률(%) | `3` → `3` | 이러닝 행의 `%` |
 
 학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다. 시청 기록은 보내지 않습니다.
 
@@ -101,9 +127,8 @@ python seowon_gui.py              PyQt 창
 python seowon_gui.py --demo       GUI 를 데모 체크로 시작
 python lib\front\gui\main.py      GUI 직접 실행
 build.bat test                    위와 같은 단위 테스트
+build.bat gui --demo              GUI 데모
 ```
-
-TUI와 GUI는 **같은 Python 조회 엔진** (`lib/back`) 을 씁니다. 컴파일러나 실행 파일은 필요 없습니다.
 
 ---
 
@@ -142,15 +167,37 @@ e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sug
 
 ## GUI
 
-`lib/front/gui` 의 PyQt6 화면입니다. 색·카드·사이드바는 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 과 같은 토스 톤입니다. 웹에 있는 제출·자료·시간표·성적은 넣지 않습니다.
+`lib/front/gui` 의 PyQt6 화면입니다. 색·카드·사이드바는 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 과 같습니다.  
+웹에 있는 제출·공지·자료·시간표·성적은 넣지 않습니다.
 
-- 왼쪽 내비는 64px 이모지 바. 마우스를 올리면 236px 로 펼쳐지고 `서원대 몰아보기` · `Ver. 1.0.0` · `조회 전용` 이 보입니다
-- 메뉴: 로그인, 지금 할 것, 과제, 이러닝, 현황, 설정, 정보
-- 과제·이러닝·지금 할 것은 표 대신 웹과 같은 카드 목록(제목·기간·상태 알약)
-- 로그인에 성공하면 알림창 대신 초록 Successful! 카드. 다음은 `지금 할 것`
-- 오류·안내는 위쪽 토스트. 로그인·조회 중에는 웹과 같은 스피너 + 알약 메시지
-- 로그인 칸은 `login.json` 을 미리 채움. 학번·비밀번호가 둘 다 있으면 입력 없이 로그인
-- 데모 모드 칸은 파란 네모 안 V자 체크. 설정에서 라이트/다크
+```text
+  [서]                          안녕하세요
+   🔑                             학번과 비밀번호로
+   🔥  ← 올리면 펼침               e-campus를 확인하세요
+   📝
+   💻                           [ 학번                    ]
+   📌                           [ 비밀번호                ]
+   ⚙️                            ☑ 데모 모드
+   🔬
+  [홍] 홍길동                     [ 로그인 ]
+       컴퓨터공학과               [ 저장된 세션으로 접속 ]
+```
+
+| 화면 | 하는 일 |
+| --- | --- |
+| 🔑 로그인 | 학번·비밀번호, 데모, 저장 세션. 성공하면 초록 Successful! 카드 |
+| 🔥 지금 할 것 | 기간 안 미제출 과제 + 들을 이러닝을 과목별로 모음 |
+| 📝 과제 | 카드 목록 · 상태 알약 · 상세 보기 (제출 없음) |
+| 💻 이러닝 | 출결 알약 · 들을 차시 · 학습률 `%` (시청 기록 없음) |
+| 📌 현황 | 미제출 / 미완료 / 과목 숫자와 과목 카드 |
+| ⚙️ 설정 | 라이트·다크, `result.json` 저장·불러오기 |
+| 🔬 정보 | 조회 전용 안내와 관련 저장소 |
+
+- 왼쪽 내비는 **64px 이모지 바**. 마우스를 올리면 236px 로 펼쳐지고 `서원대 몰아보기` · `Ver. 1.0.0` · `조회 전용` 이 보입니다.
+- 과제·이러닝·지금 할 것은 **표 대신 카드**. 상태는 알약, 오류는 위쪽 토스트.
+- 로그인·조회 중에는 웹과 같은 스피너(`loading_e1.png`) + 알약 메시지.
+- 로그인 칸은 `login.json` 을 미리 채웁니다. 학번·비밀번호가 둘 다 있으면 입력 없이 로그인합니다.
+- 데모 모드 칸은 파란 네모 안 V자 체크입니다.
 - 조회는 같은 프로세스의 `lib.back.App` 을 백그라운드 스레드에서 호출합니다. 별도 실행 파일은 띄우지 않습니다.
 
 ---
@@ -167,7 +214,8 @@ e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sug
 
 ## 구조
 
-저장소 루트가 작업 폴더입니다. `lib/front` · `lib/back` 배치는 [SeowonProject](https://github.com/hy040504/SeowonProject/tree/master/project) 를 따릅니다.
+저장소 루트가 작업 폴더입니다. `lib/front` · `lib/back` 배치는 [SeowonProject](https://github.com/hy040504/SeowonProject/tree/master/project) 를 따릅니다.  
+주석은 한국어이고, 함수 인자·반환 값은 타입 힌트로 적어 두었습니다.
 
 ```text
 seowon-cli
@@ -182,7 +230,7 @@ seowon-cli
 │  │  ├─ tui              터미널 UI
 │  │  │  ├─ ui.py
 │  │  │  └─ prompt.py
-│  │  └─ gui              PyQt 화면
+│  │  └─ gui              PyQt 화면 (웹과 같은 토스 톤)
 │  │     ├─ main.py
 │  │     ├─ window.py
 │  │     ├─ style.py
@@ -311,6 +359,7 @@ HTTP는 표준 라이브러리 `urllib`, JSON은 표준 라이브러리 `json` �
 ### 화면 · 입력
 
 - [SeowonProject](https://github.com/hy040504/SeowonProject) 처럼 `lib/front` · `lib/back` 으로 나누고, 주석은 한국어.
+- 함수 인자·반환 값은 타입 힌트로 명시합니다 (`str | None`, `dict[str, Any]`).
 - 메뉴는 계층입니다. `z`/`0` 뒤로, `q` 종료.
 - 비밀번호는 `*` 로 가리고, 마지막 글자만 잠깐 보여 줌.
 
