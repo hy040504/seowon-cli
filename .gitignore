@@ -8,6 +8,8 @@
 *.ilk
 *.exp
 *.lib
+package-lock.json
+node_modules/
 .vs/
 .idea/
 config.json

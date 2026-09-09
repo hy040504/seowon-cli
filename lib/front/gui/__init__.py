@@ -1,1 +1,1 @@
-# seowon-cli PyQt GUI
+"""PyQt 화면."""

@@ -1,4 +1,4 @@
-"""GUI 진입점. seowon-gui.exe 또는 python lib/front/gui/main.py"""
+"""GUI 진입점. python seowon_gui.py 또는 python lib/front/gui/main.py"""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ import traceback
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[3]  # seowon-cli 루트 (exe 옆)
+ROOT = Path(__file__).resolve().parents[3]  # seowon-cli 루트
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
@@ -29,7 +31,7 @@ def _fail(msg: str) -> int:
 
 
 def main() -> int:
-    """PyQt 창을 띄운다. seowon-gui.exe 는 이미 콘솔 없이 이 파일을 연다."""
+    """PyQt 창을 띄운다."""
     try:
         from PyQt6.QtGui import QFont
         from PyQt6.QtWidgets import QApplication
@@ -43,7 +45,7 @@ def main() -> int:
     try:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
-        app.setApplicationName("e-campus")
+        app.setApplicationName("서원대 몰아보기")
         font = QFont("Malgun Gothic", 10)
         app.setFont(font)
         win = MainWindow()
