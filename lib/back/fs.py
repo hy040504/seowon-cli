@@ -182,6 +182,8 @@ def result_save(path: str | Path, courses: list[CourseData], semester: str | Non
             {
                 "courseTitle": item.course.title,
                 "crsCreCd": item.course.crs_cre_cd,
+                "category": item.course.category,
+                "label": item.course.label,
                 "assignments": asg,
                 "elearning": el,
             }
@@ -218,6 +220,8 @@ def result_load(path: str | Path) -> tuple[list[CourseData], str]:
             course=Course(
                 title=str(co.get("courseTitle") or ""),
                 crs_cre_cd=str(co.get("crsCreCd") or ""),
+                category=str(co.get("category") or ""),
+                label=str(co.get("label") or ""),
             ),
             fetched_asg=True,
             fetched_les=True,

@@ -1,8 +1,9 @@
-"""웹(seowon-client-web) 과 같은 PyQt 메인 창. 조회는 백그라운드에서 돌린다."""
+"""스마트홈 태블릿 톤 PyQt 메인 창. 조회는 백그라운드에서 돌린다."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 from PyQt6.QtCore import QEvent, QObject, QSettings, Qt, QUrl
@@ -18,7 +19,6 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
-    QStackedWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -28,11 +28,16 @@ from PyQt6.QtWidgets import (
 from backend import Backend, ensure_login_file, load_login_file, login_file_complete
 from style import CURRENT, DARK, LIGHT, Theme, qss, set_current
 from widgets import (
+    DashTile,
     EmptyState,
+    FadeStack,
     FeatureCard,
+    InquiryGauge,
     JobList,
     JobRow,
+    LineIcon,
     LoadingOverlay,
+    RoundIconButton,
     Sidebar,
     StatBox,
     SuccessMark,
@@ -44,15 +49,15 @@ from widgets import (
 
 from lib.seowon import VERSION
 
-# 웹 사이드바와 같은 이모지 메뉴. 조회 전용이라 공지·자료·시간표·성적은 없다.
+# 흰 선 아이콘 메뉴. 조회 전용이라 공지·자료·시간표·성적은 없다.
 NAV: list[tuple[str, str]] = [
-    ("🔑", "로그인"),
-    ("🔥", "지금 할 것"),
-    ("📝", "과제"),
-    ("💻", "이러닝"),
-    ("📌", "현황"),
-    ("⚙️", "설정"),
-    ("🔬", "정보"),
+    ("login", "로그인"),
+    ("todo", "지금 할 것"),
+    ("assignment", "과제"),
+    ("lesson", "이러닝"),
+    ("status", "현황"),
+    ("settings", "설정"),
+    ("info", "정보"),
 ]
 
 
@@ -88,7 +93,7 @@ class MainWindow(QMainWindow):
         self._th: FnThread | None = None
         self._cards: list[QFrame] = []
         self.setWindowTitle("서원대 몰아보기")
-        self.resize(1180, 760)
+        self.resize(1240, 800)
         ensure_login_file()
 
         root = QWidget()
@@ -112,9 +117,9 @@ class MainWindow(QMainWindow):
         toast_wrap.addWidget(self.toast, 1)
         right_l.addLayout(toast_wrap)
 
-        self.stack = QStackedWidget()
+        self.stack = FadeStack()
         self.stack.setObjectName("canvas")
-        self.page_login = self._build_login()
+        self.page_login = self._build_auth()
         self.page_todo = self._build_todo()
         self.page_asg = self._build_assignments()
         self.page_les = self._build_lessons()
@@ -194,6 +199,7 @@ class MainWindow(QMainWindow):
         set_current(theme)
         self.setStyleSheet(qss(theme))
         self.overlay.apply_theme(theme)
+        self.sidebar.apply_theme()
         for card in self._cards:
             effect = card.graphicsEffect()
             if isinstance(effect, QGraphicsDropShadowEffect):
@@ -201,7 +207,7 @@ class MainWindow(QMainWindow):
         for lst in (self.todo_list, self.asg_list, self.les_list):
             lst.apply_shadow()
         self.theme_caption.setText(
-            "어두운 바탕과 밝은 글자로 봅니다." if theme is DARK else "밝은 카드 화면으로 봅니다."
+            "남색 바탕의 태블릿 화면입니다." if theme is DARK else "연한 라벤더 태블릿 화면입니다."
         )
         QSettings("seowon-cli", "e-campus").setValue("darkMode", theme is DARK)
         self.update()
@@ -260,7 +266,7 @@ class MainWindow(QMainWindow):
         outer.addStretch(1)
         row = QHBoxLayout()
         row.addStretch(1)
-        self.login_stack = QStackedWidget()
+        self.login_stack = FadeStack(duration=280)
         self.login_stack.setFixedWidth(420)
         self.login_stack.addWidget(self._build_login_form())
         self.login_stack.addWidget(self._build_login_success())
@@ -346,7 +352,7 @@ class MainWindow(QMainWindow):
         self.ok_sub.setObjectName("caption")
         self.ok_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ok_sub.setWordWrap(True)
-        go = self._primary("지금 할 것 보러 가기", lambda: self._goto(1))
+        go = self._primary("홈으로 가기", lambda: self._show_home())
         again = self._ghost("다시 로그인", self._show_login_form)
         inner.addWidget(self.ok_mark, 0, Qt.AlignmentFlag.AlignHCenter)
         inner.addSpacing(8)
@@ -361,9 +367,202 @@ class MainWindow(QMainWindow):
         return card
 
     def _goto(self, index: int) -> None:
-        """왼쪽 메뉴와 페이지를 같이 옮긴다."""
+        """왼쪽 메뉴와 페이지를 같이 옮긴다. 0번은 로그인 또는 홈."""
         self.sidebar.set_current(index)
         self.stack.setCurrentIndex(index)
+        if index == 0 and self.backend.logged_in:
+            self.auth_stack.setCurrentIndex(1)
+
+    def _show_home(self) -> None:
+        """로그인 뒤 태블릿 홈을 연다."""
+        self._fill_home()
+        self.auth_stack.setCurrentIndex(1)
+        self._goto(0)
+
+    def _build_auth(self) -> QWidget:
+        """로그인 카드와 홈 대시보드를 같은 메뉴에 둔다."""
+        self.auth_stack = FadeStack(duration=280)
+        self.auth_stack.setObjectName("canvas")
+        self.auth_stack.addWidget(self._build_login())
+        self.auth_stack.addWidget(self._build_home())
+        return self.auth_stack
+
+    def _build_home(self) -> QWidget:
+        """인사 + 통계 + 색 타일 + 조회 원 + 바로가기."""
+        inner = QWidget()
+        inner.setObjectName("canvas")
+        v = QVBoxLayout(inner)
+        v.setContentsMargins(28, 18, 28, 24)
+        v.setSpacing(16)
+
+        top = QHBoxLayout()
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("검색")
+        self.search_edit.setMaximumWidth(280)
+        self.home_date = QLabel(datetime.now().strftime("%Y. %m. %d"))
+        self.home_date.setObjectName("topDate")
+        self.home_who_chip = QLabel("Hello")
+        self.home_who_chip.setObjectName("chipName")
+        top.addWidget(self.search_edit)
+        top.addStretch(1)
+        top.addWidget(self.home_date)
+        top.addSpacing(16)
+        top.addWidget(self.home_who_chip)
+        v.addLayout(top)
+
+        hello_row = QHBoxLayout()
+        self.home_title = QLabel("Hello!")
+        self.home_title.setObjectName("heroTitle")
+        self.home_sub = QLabel("로그인하면 과제와 이러닝을 한곳에서 봅니다.")
+        self.home_sub.setObjectName("heroSub")
+        greet = QVBoxLayout()
+        greet.setSpacing(4)
+        greet.addWidget(self.home_title)
+        greet.addWidget(self.home_sub)
+        hello_row.addLayout(greet, 1)
+        for name, idx in (("todo", 1), ("assignment", 2), ("lesson", 3)):
+            b = RoundIconButton(name)
+            b.clicked.connect(lambda _=False, i=idx: self._goto(i))
+            hello_row.addWidget(b, 0, Qt.AlignmentFlag.AlignVCenter)
+        v.addLayout(hello_row)
+
+        body = QHBoxLayout()
+        body.setSpacing(16)
+        left = QVBoxLayout()
+        left.setSpacing(14)
+
+        stats = QHBoxLayout()
+        stats.setSpacing(10)
+        self.home_stat_asg = StatBox("미제출 과제")
+        self.home_stat_les = StatBox("미완료 이러닝")
+        self.home_stat_crs = StatBox("과목")
+        stats.addWidget(self.home_stat_asg)
+        stats.addWidget(self.home_stat_les)
+        stats.addWidget(self.home_stat_crs)
+        left.addLayout(stats)
+
+        tiles = QHBoxLayout()
+        tiles.setSpacing(12)
+        for icon, title, var, idx in (
+            ("todo", "지금 할 것", "blue", 1),
+            ("assignment", "과제", "pink", 2),
+            ("lesson", "이러닝", "blue", 3),
+            ("status", "현황", "pink", 4),
+        ):
+            tile = DashTile(icon, title, var)
+            tile.clicked.connect(lambda i=idx: self._goto(i))
+            tiles.addWidget(tile)
+        left.addLayout(tiles)
+
+        bottom = QHBoxLayout()
+        bottom.setSpacing(12)
+        gauge_card = QFrame()
+        gauge_card.setObjectName("featBlue")
+        gauge_card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        gl = QHBoxLayout(gauge_card)
+        gl.setContentsMargins(16, 16, 16, 16)
+        self.home_gauge = InquiryGauge()
+        self.home_gauge.clicked.connect(self._on_home_scan)
+        gl.addWidget(self.home_gauge)
+        info_card = self._card()
+        il = QVBoxLayout(info_card)
+        il.setContentsMargins(20, 18, 20, 18)
+        it = QLabel("조회 전용")
+        it.setObjectName("panelTitle")
+        ib = QLabel("과제 제출과 자동 시청은 하지 않습니다. 원을 누르면 지금 할 일을 불러옵니다.")
+        ib.setObjectName("caption")
+        ib.setWordWrap(True)
+        il.addWidget(it)
+        il.addWidget(ib)
+        il.addStretch(1)
+        bottom.addWidget(gauge_card, 1)
+        bottom.addWidget(info_card, 1)
+        left.addLayout(bottom)
+        left.addStretch(1)
+
+        right = QVBoxLayout()
+        right.setSpacing(14)
+        shortcuts = QFrame()
+        shortcuts.setObjectName("sidePanel")
+        shortcuts.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        sl = QVBoxLayout(shortcuts)
+        sl.setContentsMargins(20, 18, 20, 18)
+        sl.setSpacing(10)
+        st = QLabel("Shortcuts")
+        st.setObjectName("panelTitle")
+        sl.addWidget(st)
+        for icon, name, idx in (("assignment", "과제", 2), ("lesson", "이러닝", 3), ("status", "현황", 4), ("settings", "설정", 5)):
+            row = QHBoxLayout()
+            ic = LineIcon(icon, size=22, color=CURRENT.blue, stroke=1.8)
+            nm = QLabel(name)
+            nm.setObjectName("shortName")
+            go = QPushButton("열기")
+            go.setObjectName("primary")
+            go.setCursor(Qt.CursorShape.PointingHandCursor)
+            go.setFixedHeight(30)
+            go.clicked.connect(lambda _=False, i=idx: self._goto(i))
+            row.addWidget(ic)
+            row.addWidget(nm, 1)
+            row.addWidget(go)
+            sl.addLayout(row)
+        sl.addStretch(1)
+
+        members = QFrame()
+        members.setObjectName("sidePanel")
+        members.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        ml = QVBoxLayout(members)
+        ml.setContentsMargins(20, 18, 20, 18)
+        mt = QLabel("Profile")
+        mt.setObjectName("panelTitle")
+        self.home_member_av = QLabel("?")
+        self.home_member_av.setObjectName("avatar")
+        self.home_member_av.setFixedSize(48, 48)
+        self.home_member_av.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.home_member_av.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.home_member_av.setStyleSheet("background:#FF6B9D; color:#FFFFFF; border-radius:24px; font-weight:800;")
+        self.home_member_name = QLabel("로그인 전")
+        self.home_member_name.setObjectName("memberName")
+        self.home_member_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ml.addWidget(mt)
+        ml.addSpacing(8)
+        ml.addWidget(self.home_member_av, 0, Qt.AlignmentFlag.AlignHCenter)
+        ml.addWidget(self.home_member_name)
+        ml.addStretch(1)
+
+        right.addWidget(shortcuts, 1)
+        right.addWidget(members)
+        body.addLayout(left, 3)
+        body.addLayout(right, 2)
+        v.addLayout(body, 1)
+        return self._scroll_page(inner)
+
+    def _on_home_scan(self) -> None:
+        """홈의 조회 원. 로그인 뒤 지금 할 일을 연다."""
+        if not self.backend.logged_in:
+            self._alert("먼저 로그인하세요.", True)
+            return
+        self._goto(1)
+        self.refresh_todo()
+
+    def _fill_home(self) -> None:
+        """인사와 숫자, 프로필을 채운다."""
+        who = self.backend.student_name or "학생"
+        dept = self.backend.dept_name or "서원대학교"
+        tag = "데모 모드" if self.backend.demo else dept
+        self.home_title.setText(f"Hello {who}!")
+        self.home_sub.setText(f"{tag} · 과제와 이러닝을 한곳에서 조회합니다.")
+        self.home_who_chip.setText(f"Hello  {who}")
+        self.home_member_av.setText(who[0])
+        self.home_member_name.setText(who)
+        courses = list(self.backend.data.get("courses") or [])
+        due = 0
+        pend = 0
+        for c in courses:
+            due += sum(1 for a in (c.get("assignments") or []) if a.get("dueNow"))
+            pend += sum(1 for les in (c.get("elearning") or []) if les.get("needsWatch"))
+        self.home_stat_asg.set_value(due)
+        self.home_stat_les.set_value(pend)
+        self.home_stat_crs.set_value(len(courses))
 
     def _show_login_form(self) -> None:
         """성공 카드에서 입력 카드로 돌아간다."""
@@ -380,7 +579,7 @@ class MainWindow(QMainWindow):
         """지금 할 것 페이지."""
         inner, v = self._page("지금 할 것", "기간 안 미제출 과제와 들어야 할 이러닝을 과목별로 모읍니다.")
         self.todo_filter = QComboBox()
-        self.todo_filter.addItems(["전체 항목 (이러닝+과제)", "📝 과제만", "💻 이러닝만"])
+        self.todo_filter.addItems(["전체 항목 (이러닝+과제)", "과제만", "이러닝만"])
         v.addLayout(self._toolbar(self.todo_filter, self._primary("조회", self.refresh_todo), self._ghost("새로고침", self.refresh_todo)))
 
         self.todo_summary = QFrame()
@@ -400,7 +599,7 @@ class MainWindow(QMainWindow):
         v.addWidget(self.todo_summary)
 
         self.todo_list = JobList()
-        self.todo_list.show_empty("🔥", "조회 버튼을 눌러 할 일을 확인하세요", "현재 수강 기간 안에 제출할 과제와 들어야 할 이러닝을 과목별로 모읍니다.", "조회")
+        self.todo_list.show_empty("todo", "조회 버튼을 눌러 할 일을 확인하세요", "현재 수강 기간 안에 제출할 과제와 들어야 할 이러닝을 과목별로 모읍니다.", "조회")
         self.todo_list.row_acted.connect(lambda row: self.refresh_todo() if row is None else self._todo_act(row))
         v.addWidget(self.todo_list, 1)
         return self._scroll_page(inner)
@@ -413,7 +612,7 @@ class MainWindow(QMainWindow):
         v.addLayout(self._toolbar(self.asg_filter, self._primary("조회", self.refresh_assignments), self._ghost("상세 보기", self.show_assignment_detail)))
 
         self.asg_list = JobList()
-        self.asg_list.show_empty("📝", "아직 과제가 없습니다", "조회를 누르면 과목별 과제를 카드로 보여 줍니다.", "조회")
+        self.asg_list.show_empty("assignment", "아직 과제가 없습니다", "조회를 누르면 과목별 과제를 카드로 보여 줍니다.", "조회")
         self.asg_list.row_acted.connect(lambda row: self.refresh_assignments() if row is None else self.show_assignment_detail())
         self.asg_list.row_clicked.connect(lambda _: None)
         v.addWidget(self.asg_list, 1)
@@ -437,7 +636,7 @@ class MainWindow(QMainWindow):
         v.addLayout(self._toolbar(self.les_filter, self._primary("조회", self.refresh_lessons), self._ghost("학습률(%)", self.show_progress)))
 
         self.les_list = JobList()
-        self.les_list.show_empty("💻", "아직 차시가 없습니다", "조회를 누르면 주차별 이러닝을 카드로 보여 줍니다.", "조회")
+        self.les_list.show_empty("lesson", "아직 차시가 없습니다", "조회를 누르면 주차별 이러닝을 카드로 보여 줍니다.", "조회")
         self.les_list.row_acted.connect(lambda row: self.refresh_lessons() if row is None else self.show_progress())
         v.addWidget(self.les_list, 1)
         return self._scroll_page(inner)
@@ -481,7 +680,7 @@ class MainWindow(QMainWindow):
         row_t.addWidget(lab)
         row_t.addStretch(1)
         row_t.addWidget(self.theme_switch)
-        self.theme_caption = QLabel("밝은 카드 화면으로 봅니다.")
+        self.theme_caption = QLabel("연한 라벤더 태블릿 화면입니다.")
         self.theme_caption.setObjectName("caption")
         self.theme_caption.setWordWrap(True)
         tl.addLayout(row_t)
@@ -527,9 +726,9 @@ class MainWindow(QMainWindow):
         head = self._card()
         hl = QVBoxLayout(head)
         hl.setContentsMargins(24, 22, 24, 22)
-        ht = QLabel("🔬  서원대 e-campus 몰아보기")
+        ht = QLabel("서원대 e-campus 몰아보기")
         ht.setObjectName("hello")
-        hd = QLabel("로그인 한 번으로 전 과목의 과제와 이러닝을 모아 지금 할 일만 보여 줍니다. 화면은 seowon-client-web 과 같은 토스 톤입니다.")
+        hd = QLabel("로그인 한 번으로 전 과목의 과제와 이러닝을 모아 지금 할 일만 보여 줍니다. 화면은 스마트홈 태블릿처럼 파랑과 핑크 타일입니다.")
         hd.setObjectName("caption")
         hd.setWordWrap(True)
         pills = QHBoxLayout()
@@ -548,10 +747,10 @@ class MainWindow(QMainWindow):
         grid = QGridLayout()
         grid.setSpacing(16)
         cards = [
-            ("📝", "과제 조회", "기간·제출 상태를 카드로 모읍니다.", "과제 ➔", "blue", 2),
-            ("💻", "이러닝 조회", "출결과 들을 차시, 학습률(%)만 봅니다.", "이러닝 ➔", "surface", 3),
-            ("🔥", "지금 할 것", "기간 안 미제출과 미완료만 골라 줍니다.", "할 일 ➔", "dark", 1),
-            ("📌", "현황 한 표", "과목별 미제출·미완료 숫자를 모읍니다.", "현황 ➔", "surface", 4),
+            ("assignment", "과제 조회", "기간·제출 상태를 카드로 모읍니다.", "과제 ➔", "blue", 2),
+            ("lesson", "이러닝 조회", "출결과 들을 차시, 학습률(%)만 봅니다.", "이러닝 ➔", "surface", 3),
+            ("todo", "지금 할 것", "기간 안 미제출과 미완료만 골라 줍니다.", "할 일 ➔", "dark", 1),
+            ("status", "현황 한 표", "과목별 미제출·미완료 숫자를 모읍니다.", "현황 ➔", "surface", 4),
         ]
         for i, (icon, title, sub, action, variant, idx) in enumerate(cards):
             card = FeatureCard(icon, title, sub, action, variant)
@@ -687,6 +886,7 @@ class MainWindow(QMainWindow):
         self.profile.setText(who)
         self._apply_profile_chip()
         self._show_login_success(who, tag)
+        self._show_home()
 
     def on_session(self) -> None:
         """저장된 세션으로 접속한다."""
@@ -707,6 +907,7 @@ class MainWindow(QMainWindow):
             self.profile.setText(who)
             self._apply_profile_chip()
             self._show_login_success(who, "저장된 세션으로 들어왔어요")
+            self._show_home()
 
         self._busy("세션을 확인하는 중", work, done)
 
@@ -717,6 +918,7 @@ class MainWindow(QMainWindow):
         self.backend.student_name = ""
         self.backend.dept_name = ""
         self._apply_profile_chip()
+        self.auth_stack.setCurrentIndex(0)
         self._show_login_form()
         self._goto(0)
 
@@ -765,7 +967,7 @@ class MainWindow(QMainWindow):
                             badge=att or "이러닝",
                             badge_kind=_badge_kind_att(att),
                             hot="-" if pct is None else f"{pct}%",
-                            action="%",
+                            action="학습률",
                             payload={"kind": "les", "ci": ci, "li": li},
                         )
                     )
@@ -775,7 +977,7 @@ class MainWindow(QMainWindow):
                 for row in block:
                     self.todo_list.add_row(row)
         if not any_row:
-            self.todo_list.show_empty("✨", "지금 할 일이 없습니다", "기간 안 미제출 과제와 들을 차시가 없습니다.")
+            self.todo_list.show_empty("sparkle", "지금 할 일이 없습니다", "기간 안 미제출 과제와 들을 차시가 없습니다.")
             self.todo_badge.setText("할 일 없음")
             self.todo_badge.setProperty("done", True)
             self.todo_sum_text.setText("지금은 제출할 과제와 들을 이러닝이 없습니다.")
@@ -844,7 +1046,7 @@ class MainWindow(QMainWindow):
                     )
                 )
         if n == 0:
-            self.asg_list.show_empty("📝", "조건에 맞는 과제가 없습니다", "필터를 바꾸거나 다시 조회해 보세요.")
+            self.asg_list.show_empty("assignment", "조건에 맞는 과제가 없습니다", "필터를 바꾸거나 다시 조회해 보세요.")
         else:
             self.asg_list.finish()
 
@@ -891,12 +1093,12 @@ class MainWindow(QMainWindow):
                         badge=att or "차시",
                         badge_kind=_badge_kind_att(att),
                         hot="-" if pct is None else f"{pct}%",
-                        action="%",
+                        action="학습률",
                         payload={"ci": ci, "li": li, "row": None},
                     )
                 )
         if n == 0:
-            self.les_list.show_empty("💻", "조건에 맞는 차시가 없습니다", "필터를 바꾸거나 다시 조회해 보세요.")
+            self.les_list.show_empty("lesson", "조건에 맞는 차시가 없습니다", "필터를 바꾸거나 다시 조회해 보세요.")
         else:
             self.les_list.finish()
 
@@ -946,13 +1148,13 @@ class MainWindow(QMainWindow):
                 summary.append({"courseTitle": course.get("courseTitle"), "dueAssignments": due, "pendingLessons": pend})
         due_total = sum(int(s.get("dueAssignments") or 0) for s in summary)
         pend_total = sum(int(s.get("pendingLessons") or 0) for s in summary)
-        self.stat_asg.value.setText(str(due_total))
-        self.stat_les.value.setText(str(pend_total))
-        self.stat_crs.value.setText(str(len(summary)))
+        self.stat_asg.set_value(due_total)
+        self.stat_les.set_value(pend_total)
+        self.stat_crs.set_value(len(summary))
 
         self._clear_sum_grid()
         if not summary:
-            empty = EmptyState("📌", "현황이 없습니다", "조회를 누르면 과목별 숫자를 모읍니다.", "조회")
+            empty = EmptyState("status", "현황이 없습니다", "조회를 누르면 과목별 숫자를 모읍니다.", "조회")
             empty.action_clicked.connect(self.refresh_summary)
             self.sum_grid.addWidget(empty, 0, 0)
             return
@@ -961,7 +1163,7 @@ class MainWindow(QMainWindow):
             pend = int(s.get("pendingLessons") or 0)
             variant = "blue" if due or pend else "surface"
             card = FeatureCard(
-                "📌",
+                "status",
                 str(s.get("courseTitle") or ""),
                 f"미제출 과제 {due}  ·  미완료 이러닝 {pend}",
                 "과제 보기 ➔" if due else "이러닝 보기 ➔" if pend else "자세히 ➔",

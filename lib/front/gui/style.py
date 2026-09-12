@@ -1,4 +1,4 @@
-"""seowon-client-web 과 같은 토스 톤. 라이트는 흰 카드, 다크는 #17171C."""
+"""스마트홈 태블릿 UI 톤. 연한 라벤더 레일 + 파랑/핑크 타일."""
 
 from __future__ import annotations
 
@@ -7,94 +7,104 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Theme:
-    """라이트/다크 색. 웹 style.css 변수와 같다."""
+    """라이트는 태블릿 목업, 다크는 같은 구조를 남색으로."""
 
-    name: str                   # light / dark
-    blue: str                   # 포인트 파랑 (#3182F6)
-    blue_hover: str             # 버튼 호버
-    blue_press: str             # 버튼 누름
-    blue_soft: str              # 선택·아바타 배경
-    accent: str                 # 홈 카드 강조선 (#0147FF)
-    bg: str                     # 창 바탕
-    surface: str                # 카드·사이드바
-    text: str                   # 본문
-    text_2: str                 # 보조
-    text_3: str                 # 캡션
-    line: str                   # 구분선
-    red: str                    # 오류
-    green: str                  # 성공
-    input_bg: str               # 입력칸·고스트 버튼
-    table_alt: str              # 표 줄무늬
-    overlay: str                # 로딩 막
-    track: str                  # 스위치 꺼짐
-    handle: str                 # 스위치 원
-    check_border: str           # 체크 테두리
-    spinner_track: str          # 스피너 바탕 원
-    att_miss: str               # 출결 미학습
-    att_ing: str                # 출결 진행
-    att_done: str               # 출결 완료
-    shadow_a: int               # 카드 그림자 알파
+    name: str
+    blue: str
+    blue_hover: str
+    blue_press: str
+    blue_soft: str
+    accent: str
+    pink: str
+    pink_soft: str
+    bg: str
+    surface: str
+    text: str
+    text_2: str
+    text_3: str
+    line: str
+    red: str
+    green: str
+    input_bg: str
+    table_alt: str
+    overlay: str
+    track: str
+    handle: str
+    check_border: str
+    spinner_track: str
+    att_miss: str
+    att_ing: str
+    att_done: str
+    shadow_a: int
+    sidebar: str
+    sidebar_text: str
 
 
-# 웹 public/style.css :root 와 같은 값
 LIGHT = Theme(
     name="light",
-    blue="#3182F6",
-    blue_hover="#1B64DA",
-    blue_press="#1957C2",
-    blue_soft="#E8F3FF",
-    accent="#0147FF",
-    bg="#F2F4F6",
+    blue="#6B7CFF",
+    blue_hover="#5A6BF0",
+    blue_press="#4C5BE0",
+    blue_soft="#E8ECFF",
+    accent="#6B7CFF",
+    pink="#FF6B9D",
+    pink_soft="#FFE4EE",
+    bg="#EEF2FF",
     surface="#FFFFFF",
-    text="#191F28",
-    text_2="#4E5968",
-    text_3="#8B95A1",
-    line="#E5E8EB",
-    red="#F04452",
-    green="#00C73C",
-    input_bg="#F2F4F6",
-    table_alt="#FAFBFC",
-    overlay="rgba(242, 244, 246, 210)",
-    track="#E5E8EB",
+    text="#2F3B8F",
+    text_2="#5A6799",
+    text_3="#8B95C2",
+    line="#E3E8F8",
+    red="#F06292",
+    green="#3DDC84",
+    input_bg="#F4F6FF",
+    table_alt="#F7F9FF",
+    overlay="rgba(238, 242, 255, 210)",
+    track="#DDE3F7",
     handle="#FFFFFF",
-    check_border="#D1D6DB",
-    spinner_track="#E8F3FF",
-    att_miss="#FF2D2D",
-    att_ing="#12B886",
-    att_done="#00C73C",
-    shadow_a=20,
+    check_border="#C9D2F0",
+    spinner_track="#E8ECFF",
+    att_miss="#F06292",
+    att_ing="#6B7CFF",
+    att_done="#3DDC84",
+    shadow_a=22,
+    sidebar="#D9E4FF",
+    sidebar_text="#4A5BB5",
 )
 
-# 웹 html[data-theme="dark"] 와 같은 값
 DARK = Theme(
     name="dark",
-    blue="#3182F6",
-    blue_hover="#4B93F7",
-    blue_press="#1B64DA",
-    blue_soft="#1B3358",
-    accent="#0147FF",
-    bg="#17171C",
-    surface="#202027",
-    text="#F4F4F5",
-    text_2="#B0B3BA",
-    text_3="#8B8E97",
-    line="#2E2E36",
-    red="#F04452",
-    green="#00D66B",
-    input_bg="#2C2C35",
-    table_alt="#25252D",
-    overlay="rgba(15, 23, 42, 210)",
-    track="#3A3A44",
-    handle="#F4F4F5",
-    check_border="#4A4A54",
-    spinner_track="#1B3358",
-    att_miss="#FF6B6B",
-    att_ing="#2EE6C4",
-    att_done="#39FF14",
+    blue="#8B9BFF",
+    blue_hover="#A0ADFF",
+    blue_press="#6B7CFF",
+    blue_soft="#2A3360",
+    accent="#8B9BFF",
+    pink="#FF8FB5",
+    pink_soft="#4A2A38",
+    bg="#1A1F3A",
+    surface="#252C52",
+    text="#F0F2FF",
+    text_2="#C2C8E8",
+    text_3="#8B93C0",
+    line="#343C68",
+    red="#FF8FB5",
+    green="#3DDC84",
+    input_bg="#2E3660",
+    table_alt="#22284A",
+    overlay="rgba(16, 20, 40, 210)",
+    track="#3A4270",
+    handle="#F0F2FF",
+    check_border="#4A5280",
+    spinner_track="#2A3360",
+    att_miss="#FF8FB5",
+    att_ing="#8B9BFF",
+    att_done="#3DDC84",
     shadow_a=70,
+    sidebar="#22284A",
+    sidebar_text="#C2C8E8",
 )
 
-CURRENT = LIGHT                # 지금 화면에 쓰는 테마
+CURRENT = LIGHT
 
 
 def set_current(theme: Theme) -> None:
@@ -104,27 +114,33 @@ def set_current(theme: Theme) -> None:
 
 
 def qss(t: Theme) -> str:
-    """메인 창에 입힐 스타일시트. 웹 style.css 의 클래스명을 objectName 으로 옮겼다."""
-    ghost_bg = "#E8ECEF" if t.name == "light" else t.input_bg
-    ghost_border = "#D0D5DC" if t.name == "light" else "#3F3F4C"
-    combo_border = "#B0B8C1" if t.name == "light" else "#6B6B76"
+    """태블릿 목업처럼 둥근 카드와 파랑/핑크 포인트를 입힌다."""
+    ghost_bg = "#EEF2FF" if t.name == "light" else t.input_bg
+    ghost_border = "#D5DCF5" if t.name == "light" else "#4A5280"
+    combo_border = "#C9D2F0" if t.name == "light" else "#5A6490"
     pill_bg = t.surface
-    pill_border = "rgba(0, 0, 0, 0.08)" if t.name == "light" else "rgba(255, 255, 255, 0.15)"
+    pill_border = "rgba(47, 59, 143, 0.08)" if t.name == "light" else "rgba(255, 255, 255, 0.12)"
+    toast_bg = t.blue
+    toast_err = t.pink
+    toast_ok = "#2E9B57"
     return f"""
 QMainWindow {{
     background: {t.bg};
     color: {t.text};
-    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
     font-size: 14px;
 }}
 QWidget {{
     color: {t.text};
-    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
     font-size: 14px;
 }}
 QWidget#sidebar {{
-    background: {t.surface};
-    border-right: 1px solid {t.line};
+    background: {t.sidebar};
+    border-right: none;
+}}
+QWidget#sidebar QLabel {{
+    background: transparent;
 }}
 QWidget#canvas {{
     background: {t.bg};
@@ -135,50 +151,48 @@ QStackedWidget {{
 QWidget#card, QFrame#card {{
     background: {t.surface};
     border: none;
-    border-radius: 20px;
+    border-radius: 24px;
 }}
 QFrame#chip {{
-    background: {t.surface};
-    border: 1px solid {t.line};
-    border-radius: 16px;
+    background: transparent;
+    border: none;
 }}
 QLabel#brand, QLabel#brandText {{
-    font-size: 18px;
-    font-weight: 900;
-    color: {t.text};
-    letter-spacing: -0.5px;
+    font-size: 13px;
+    font-weight: 800;
+    color: {t.sidebar_text};
+    letter-spacing: -0.2px;
 }}
 QLabel#brandSub, QLabel#brandVersion {{
-    font-size: 12px;
-    color: {t.text_3};
+    font-size: 10px;
+    color: {t.sidebar_text};
     font-weight: 600;
 }}
 QLabel#queryBadge {{
-    background: rgba(239, 68, 68, 0.12);
-    color: #EF4444;
-    border: 1px solid rgba(239, 68, 68, 0.30);
-    border-radius: 6px;
-    font-size: 10px;
+    background: {t.pink_soft};
+    color: {t.pink};
+    border: none;
+    border-radius: 8px;
+    font-size: 9px;
     font-weight: 800;
-    padding: 2px 7px;
+    padding: 2px 6px;
 }}
 QLabel#hello {{
-    font-size: 22px;
-    font-weight: 800;
-    color: {t.text};
-    letter-spacing: -0.4px;
-}}
-QLabel#successTitle {{
-    font-size: 28px;
-    font-weight: 800;
-    color: {t.green};
-    letter-spacing: -0.8px;
-}}
-QLabel#pageTitle {{
     font-size: 28px;
     font-weight: 800;
     color: {t.text};
     letter-spacing: -0.6px;
+}}
+QLabel#successTitle {{
+    font-size: 26px;
+    font-weight: 800;
+    color: {t.green};
+}}
+QLabel#pageTitle {{
+    font-size: 26px;
+    font-weight: 800;
+    color: {t.text};
+    letter-spacing: -0.4px;
 }}
 QLabel#caption {{
     font-size: 13px;
@@ -199,148 +213,149 @@ QLabel#profileName, QLabel#chipName {{
     color: {t.text};
 }}
 QLabel#chipSub {{
-    font-size: 12px;
+    font-size: 11px;
     color: {t.text_3};
 }}
 QLabel#avatar {{
-    background: {t.blue_soft};
-    color: {t.blue};
-    border-radius: 16px;
+    background: {t.pink};
+    color: #FFFFFF;
+    border-radius: 999px;
     font-weight: 800;
     qproperty-alignment: AlignCenter;
 }}
-QLabel#navEmoji {{
+QLabel#brandLogo {{
+    background: transparent;
+    border: none;
+}}
+QLabel#navEmoji, QLabel#navIconWell {{
     font-size: 18px;
     background: transparent;
+    color: {t.sidebar_text};
     qproperty-alignment: AlignCenter;
 }}
 QLabel#navLabel {{
-    font-size: 15px;
+    font-size: 11px;
     font-weight: 700;
+    color: {t.sidebar_text};
     background: transparent;
+    qproperty-alignment: AlignCenter;
 }}
 QPushButton#navBtn {{
-    text-align: left;
+    text-align: center;
     padding: 0;
     border: none;
-    border-radius: 14px;
+    border-radius: 28px;
     background: transparent;
-    color: {t.text};
-    font-size: 15px;
-    font-weight: 700;
+    color: {t.sidebar_text};
 }}
 QPushButton#navBtn:hover {{
-    background: {t.blue_soft};
-    color: {t.blue};
+    background: rgba(255, 255, 255, 0.35);
 }}
 QPushButton#navBtn:checked {{
-    background: {t.blue_soft};
-    color: {t.blue};
-    font-weight: 800;
-}}
-QPushButton#navBtn:checked QLabel#navLabel {{
-    color: {t.blue};
-    font-weight: 800;
+    background: transparent;
 }}
 QPushButton#sideLogout {{
     border: none;
-    border-radius: 14px;
-    background: {t.input_bg};
-    color: {t.text_2};
+    border-radius: 12px;
+    background: transparent;
+    color: {t.sidebar_text};
     font-weight: 700;
-    padding: 0;
+    font-size: 11px;
+    padding: 6px 4px;
 }}
 QPushButton#sideLogout:hover {{
-    background: rgba(239, 68, 68, 0.12);
-    color: {t.red};
+    color: {t.pink};
 }}
 QPushButton#primary {{
     background: {t.blue};
     color: #FFFFFF;
     border: none;
-    border-radius: 14px;
-    padding: 13px 16px;
-    font-size: 15px;
-    font-weight: 700;
+    border-radius: 18px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 800;
 }}
-QPushButton#primary:hover {{ background: {t.blue_hover}; }}
-QPushButton#primary:pressed {{ background: {t.blue_press}; }}
-QPushButton#primary:disabled {{ background: #5A7FBF; color: #FFFFFF; }}
+QPushButton#primary:hover {{ background: {t.blue_hover}; color: #FFFFFF; }}
+QPushButton#primary:pressed {{ background: {t.blue_press}; color: #FFFFFF; }}
+QPushButton#primary:disabled {{ background: #A8B2F0; color: #FFFFFF; }}
 QPushButton#ghost {{
     background: {ghost_bg};
     color: {t.text};
     border: 1px solid {ghost_border};
-    border-radius: 14px;
-    padding: 13px 16px;
-    font-size: 15px;
+    border-radius: 18px;
+    padding: 12px 18px;
+    font-size: 14px;
     font-weight: 700;
 }}
 QPushButton#ghost:hover {{
     background: {t.surface};
     border: 1px solid {t.blue};
+    color: {t.text};
 }}
 QPushButton#ghost:disabled {{ color: {t.text_3}; }}
 QPushButton#heroBtn {{
-    background: {t.accent};
+    background: {t.pink};
     color: #FFFFFF;
     border: none;
     border-radius: 999px;
-    padding: 12px 22px;
-    font-size: 14px;
-    font-weight: 700;
-}}
-QPushButton#heroBtn:hover {{ background: {t.blue_hover}; }}
-QPushButton#heroGhost {{
-    background: rgba(255, 255, 255, 0.10);
-    color: #F1F5F9;
-    border: 1px solid rgba(255, 255, 255, 0.20);
-    border-radius: 999px;
-    padding: 12px 22px;
-    font-size: 14px;
-    font-weight: 700;
-}}
-QPushButton#heroGhost:hover {{ background: rgba(255, 255, 255, 0.20); }}
-QPushButton#pillBtn {{
-    background: {t.blue};
-    color: #FFFFFF;
-    border: none;
-    border-radius: 999px;
-    padding: 10px 20px;
+    padding: 10px 18px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
+}}
+QPushButton#heroBtn:hover {{ background: #FF5A90; color: #FFFFFF; }}
+QPushButton#pillBtn {{
+    background: rgba(255, 255, 255, 0.28);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 800;
 }}
 QPushButton#jobAct {{
     background: {t.blue};
     color: #FFFFFF;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     font-size: 13px;
     font-weight: 800;
-    padding: 0;
+    padding: 6px 14px;
+    min-width: 72px;
 }}
-QPushButton#jobAct:hover {{ background: {t.blue_hover}; }}
+QPushButton#jobAct:hover {{ background: {t.blue_hover}; color: #FFFFFF; }}
+QPushButton#roundAct {{
+    background: {t.pink};
+    color: #FFFFFF;
+    border: none;
+    border-radius: 26px;
+    padding: 0;
+    font-size: 18px;
+    font-weight: 800;
+}}
+QPushButton#roundAct:hover {{ background: #FF5A90; }}
 QLineEdit, QTextEdit {{
     background: {t.input_bg};
     border: 1px solid transparent;
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 18px;
+    padding: 11px 16px;
     color: {t.text};
-    font-size: 15px;
+    font-size: 14px;
     selection-background-color: {t.blue_soft};
     selection-color: {t.text};
 }}
 QLineEdit:focus, QTextEdit:focus {{
     background: {t.surface};
     border: 1px solid {t.blue};
+    color: {t.text};
 }}
 QComboBox {{
     background: {t.surface};
     border: 1.5px solid {combo_border};
-    border-radius: 12px;
-    padding: 11px 14px;
+    border-radius: 18px;
+    padding: 10px 14px;
     color: {t.text};
-    font-size: 15px;
-    min-width: 220px;
+    font-size: 14px;
+    min-width: 200px;
 }}
 QComboBox:focus {{
     border: 1.5px solid {t.blue};
@@ -358,28 +373,30 @@ QLabel#loadPill {{
     background: {pill_bg};
     color: {t.text};
     border: 1px solid {pill_border};
-    border-radius: 20px;
+    border-radius: 18px;
     padding: 8px 18px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
 }}
 QFrame#toast {{
-    background: {t.surface};
-    border: 1px solid {t.line};
-    border-radius: 14px;
+    background: {toast_bg};
+    border: none;
+    border-radius: 16px;
 }}
 QFrame#toast[kind="error"] {{
-    background: rgba(240, 68, 82, 0.12);
-    border: 1px solid rgba(240, 68, 82, 0.35);
+    background: {toast_err};
+}}
+QFrame#toast[kind="success"] {{
+    background: {toast_ok};
 }}
 QLabel#toastMsg {{
     font-size: 14px;
     font-weight: 700;
-    color: {t.text};
+    color: #FFFFFF;
 }}
 QFrame#jobList {{
     background: {t.surface};
-    border-radius: 20px;
+    border-radius: 24px;
     border: none;
 }}
 QFrame#jobRow {{
@@ -394,13 +411,12 @@ QFrame#jobRow[selected="true"] {{
     background: {t.blue_soft};
 }}
 QLabel#jobTitle {{
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: -0.4px;
     color: {t.text};
 }}
 QLabel#jobMeta {{
-    font-size: 14px;
+    font-size: 13px;
     color: {t.text_3};
 }}
 QLabel#jobHot {{
@@ -409,10 +425,10 @@ QLabel#jobHot {{
     color: {t.text};
 }}
 QLabel#badge {{
-    border-radius: 999px;
+    border-radius: 8px;
     padding: 2px 8px;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 800;
     background: {t.blue_soft};
     color: {t.blue};
 }}
@@ -421,16 +437,16 @@ QLabel#badge[kind="due"] {{
     color: {t.blue};
 }}
 QLabel#badge[kind="miss"] {{
-    background: rgba(240, 68, 82, 0.12);
-    color: {t.red};
+    background: {t.pink_soft};
+    color: {t.pink};
 }}
 QLabel#badge[kind="done"] {{
-    background: rgba(0, 199, 60, 0.12);
+    background: rgba(61, 220, 132, 0.16);
     color: {t.green};
 }}
 QLabel#badge[kind="watch"] {{
-    background: rgba(18, 184, 134, 0.14);
-    color: {t.att_ing};
+    background: {t.blue_soft};
+    color: {t.blue};
 }}
 QLabel#badge[kind="demo"] {{
     background: {t.input_bg};
@@ -438,137 +454,164 @@ QLabel#badge[kind="demo"] {{
 }}
 QFrame#courseCard {{
     background: {t.surface};
-    border: 1.5px solid rgba(49, 130, 246, 0.40);
+    border: none;
     border-radius: 24px;
 }}
-QLabel#emptyIcon {{
-    font-size: 34px;
+QLabel#emptyIcon, QFrame#emptyIcon {{
+    font-size: 28px;
     background: {t.blue_soft};
-    border-radius: 22px;
+    color: {t.blue};
+    border-radius: 36px;
     qproperty-alignment: AlignCenter;
 }}
 QLabel#emptyTitle {{
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 800;
     color: {t.text};
-    letter-spacing: -0.4px;
 }}
 QLabel#emptyDesc {{
-    font-size: 14px;
+    font-size: 13px;
     color: {t.text_2};
 }}
 QFrame#homeHero {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E293B, stop:1 #0F172A);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 28px;
-}}
-QLabel#heroBadge {{
-    background: rgba(49, 130, 246, 0.20);
-    color: #60A5FA;
-    border: 1px solid rgba(96, 165, 250, 0.30);
-    border-radius: 999px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 700;
+    background: transparent;
+    border: none;
 }}
 QLabel#heroTitle {{
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 800;
-    color: #FFFFFF;
-    letter-spacing: -0.5px;
+    color: {t.text};
+    letter-spacing: -0.6px;
 }}
 QLabel#heroSub {{
-    font-size: 15px;
-    color: #94A3B8;
+    font-size: 14px;
+    color: {t.text_3};
 }}
-QFrame#featBlue {{
-    background: {t.accent};
+QLabel#topDate {{
+    font-size: 13px;
+    font-weight: 700;
+    color: {t.text_2};
+}}
+QFrame#featBlue, QFrame#dashBlue {{
+    background: {t.blue};
     border: none;
-    border-radius: 28px;
+    border-radius: 24px;
 }}
-QFrame#featDark {{
-    background: #1A1A1A;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 28px;
+QFrame#featDark, QFrame#dashPink {{
+    background: {t.pink};
+    border: none;
+    border-radius: 24px;
 }}
-QFrame#featSurface {{
+QFrame#featSurface, QFrame#dashWhite {{
     background: {t.surface};
-    border: 1px solid {t.line};
-    border-radius: 28px;
+    border: none;
+    border-radius: 24px;
 }}
-QLabel#featIcon {{ font-size: 32px; background: transparent; }}
+QLabel#featIcon {{
+    font-size: 26px;
+    background: transparent;
+}}
 QLabel#featTitle {{
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 800;
-    letter-spacing: -0.4px;
     background: transparent;
 }}
 QLabel#featSub {{
-    font-size: 13px;
+    font-size: 12px;
     background: transparent;
 }}
-QFrame#featBlue QLabel#featTitle, QFrame#featBlue QLabel#featIcon {{ color: #FFFFFF; }}
-QFrame#featBlue QLabel#featSub {{ color: rgba(255, 255, 255, 0.88); }}
-QFrame#featDark QLabel#featTitle, QFrame#featDark QLabel#featIcon {{ color: #FFFFFF; }}
-QFrame#featDark QLabel#featSub {{ color: #94A3B8; }}
-QFrame#featSurface QLabel#featTitle, QFrame#featSurface QLabel#featIcon {{ color: {t.text}; }}
-QFrame#featSurface QLabel#featSub {{ color: {t.text_2}; }}
+QFrame#featBlue QLabel#featTitle, QFrame#featBlue QLabel#featIcon,
+QFrame#dashBlue QLabel#featTitle, QFrame#dashBlue QLabel#featIcon {{
+    color: #FFFFFF;
+}}
+QFrame#featBlue QLabel#featSub, QFrame#dashBlue QLabel#featSub {{
+    color: rgba(255, 255, 255, 0.90);
+}}
+QFrame#featDark QLabel#featTitle, QFrame#featDark QLabel#featIcon,
+QFrame#dashPink QLabel#featTitle, QFrame#dashPink QLabel#featIcon {{
+    color: #FFFFFF;
+}}
+QFrame#featDark QLabel#featSub, QFrame#dashPink QLabel#featSub {{
+    color: rgba(255, 255, 255, 0.92);
+}}
+QFrame#featSurface QLabel#featTitle, QFrame#featSurface QLabel#featIcon,
+QFrame#dashWhite QLabel#featTitle, QFrame#dashWhite QLabel#featIcon {{
+    color: {t.text};
+}}
+QFrame#featSurface QLabel#featSub, QFrame#dashWhite QLabel#featSub {{
+    color: {t.text_2};
+}}
 QFrame#statBox {{
-    background: {t.input_bg};
-    border-radius: 10px;
+    background: {t.surface};
+    border-radius: 20px;
 }}
 QLabel#statLabel {{
     font-size: 12px;
-    color: {t.text_3};
+    font-weight: 700;
+    color: {t.pink};
     background: transparent;
 }}
 QLabel#statValue {{
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 800;
     color: {t.text};
     background: transparent;
 }}
 QFrame#infoNotice {{
-    background: {t.blue_soft};
-    border-left: 4px solid {t.blue};
-    border-radius: 10px;
+    background: {t.pink_soft};
+    border-left: 4px solid {t.pink};
+    border-radius: 14px;
 }}
 QLabel#infoNoticeText {{
     font-size: 13px;
-    color: {t.text_2};
+    color: {t.text};
     font-weight: 500;
     background: transparent;
 }}
 QLabel#infoPill {{
     background: {t.input_bg};
     color: {t.text_2};
-    border: 1px solid {t.line};
+    border: none;
     border-radius: 999px;
     padding: 4px 12px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
 }}
 QLabel#infoPill[accent="true"] {{
     background: {t.blue_soft};
     color: {t.blue};
-    border: 1px solid rgba(49, 130, 246, 0.25);
 }}
-QFrame#todoSummary {{
+QFrame#todoSummary, QFrame#sidePanel {{
     background: {t.surface};
-    border: 1px solid {t.line};
-    border-radius: 20px;
+    border: none;
+    border-radius: 24px;
 }}
 QLabel#todoBadge {{
-    background: rgba(49, 130, 246, 0.12);
+    background: {t.blue_soft};
     color: {t.blue};
     border-radius: 999px;
     padding: 4px 12px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 800;
 }}
 QLabel#todoBadge[done="true"] {{
-    background: rgba(0, 199, 60, 0.12);
+    background: rgba(61, 220, 132, 0.16);
     color: {t.green};
+}}
+QLabel#panelTitle {{
+    font-size: 15px;
+    font-weight: 800;
+    color: {t.text};
+}}
+QLabel#shortName {{
+    font-size: 14px;
+    font-weight: 700;
+    color: {t.text};
+}}
+QLabel#memberName {{
+    font-size: 11px;
+    font-weight: 700;
+    color: {t.pink};
 }}
 QScrollArea {{
     border: none;
@@ -640,9 +683,9 @@ QMessageBox QPushButton {{
     background: {t.blue};
     color: #FFFFFF;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 8px 16px;
-    font-weight: 700;
+    font-weight: 800;
     min-width: 72px;
 }}
 """
