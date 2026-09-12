@@ -21,7 +21,7 @@ from lib.util import enable_console, load_spin, term_clear  # noqa: E402
 
 
 def usage() -> None:
-    """명령줄 도움말."""
+    """명령줄 도움말을 stdout 에 찍는다."""
     print(f"seowon-cli {VERSION} — 서원대 e-campus 과제·이러닝 현황 (Python CLI)\n")
     print("사용법:")
     print("  python seowon_tui.py            대화형 TUI 메뉴")
@@ -38,7 +38,14 @@ def usage() -> None:
 
 
 def _rpc_print_file(path: Path) -> int:
-    """result.json 내용을 stdout 에 그대로 쓴다."""
+    """``result.json`` 내용을 stdout 에 그대로 쓴다.
+
+    Args:
+        path: JSON 파일.
+
+    Returns:
+        성공 0, 읽기 실패 1.
+    """
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError:
@@ -51,7 +58,20 @@ def _rpc_print_file(path: Path) -> int:
 
 
 def run_rpc(app: App, argv: list[str]) -> int:
-    """스크립트용 JSON stdout. GUI 가 아닌 외부 도구용."""
+    """스크립트용 JSON stdout. GUI 가 아닌 외부 도구용.
+
+    Parameters
+    ----------
+    app : App
+        부팅할 엔진. ``quiet`` 를 켠다.
+    argv : list of str
+        ``--rpc`` 와 명령을 포함한 인자.
+
+    Returns
+    -------
+    int
+        성공 0, 실패 1.
+    """
     cmd = None
     idx = 0
     for i, a in enumerate(argv):
@@ -184,7 +204,14 @@ def run_rpc(app: App, argv: list[str]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """TUI · 데모 · 테스트 · RPC 진입점."""
+    """TUI · 데모 · 테스트 · RPC 진입점.
+
+    Args:
+        argv: 명령줄. None 이면 ``sys.argv``.
+
+    Returns:
+        프로세스 종료 코드.
+    """
     argv = list(sys.argv if argv is None else argv)
     enable_console()
     os.chdir(ROOT)

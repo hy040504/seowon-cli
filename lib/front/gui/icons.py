@@ -8,7 +8,16 @@ from PyQt6.QtWidgets import QWidget
 
 
 def lerp_color(a: QColor, b: QColor, t: float) -> QColor:
-    """두 색을 t 만큼 섞는다."""
+    """두 색을 ``t`` 만큼 섞는다.
+
+    Args:
+        a: 시작 색.
+        b: 끝 색.
+        t: 0~1. 밖이면 자른다.
+
+    Returns:
+        보간된 ``QColor``.
+    """
     t = max(0.0, min(1.0, t))
     return QColor(
         int(a.red() + (b.red() - a.red()) * t),
@@ -19,7 +28,11 @@ def lerp_color(a: QColor, b: QColor, t: float) -> QColor:
 
 
 def _draw_home(p: QPainter) -> None:
-    """집 윤곽."""
+    """집 윤곽.
+
+    Args:
+        p: 24×24 좌표 painter.
+    """
     path = QPainterPath()
     path.moveTo(4.0, 11.2)
     path.lineTo(12.0, 3.6)
@@ -31,7 +44,11 @@ def _draw_home(p: QPainter) -> None:
 
 
 def _draw_login(p: QPainter) -> None:
-    """열쇠. 고리 + 막대 + 이빨."""
+    """열쇠. 고리 + 막대 + 이빨.
+
+    Args:
+        p: 24×24 좌표 painter.
+    """
     p.drawEllipse(QRectF(3.2, 7.2, 9.6, 9.6))
     p.drawEllipse(QRectF(5.8, 9.8, 4.4, 4.4))
     p.drawLine(QPointF(12.8, 12.0), QPointF(20.8, 12.0))
@@ -148,6 +165,47 @@ def _draw_pin(p: QPainter) -> None:
     p.drawLine(QPointF(8.4, 14.6), QPointF(15.6, 14.6))
 
 
+def _draw_notice(p: QPainter) -> None:
+    """확성기."""
+    path = QPainterPath()
+    path.moveTo(4.2, 9.2)
+    path.lineTo(9.4, 9.2)
+    path.lineTo(16.2, 4.6)
+    path.lineTo(16.2, 19.4)
+    path.lineTo(9.4, 14.8)
+    path.lineTo(4.2, 14.8)
+    path.closeSubpath()
+    p.drawPath(path)
+    p.drawLine(QPointF(18.6, 8.4), QPointF(21.0, 6.6))
+    p.drawLine(QPointF(18.6, 12.0), QPointF(21.4, 12.0))
+    p.drawLine(QPointF(18.6, 15.6), QPointF(21.0, 17.4))
+
+
+def _draw_material(p: QPainter) -> None:
+    """폴더."""
+    path = QPainterPath()
+    path.moveTo(3.4, 8.2)
+    path.lineTo(3.4, 6.4)
+    path.lineTo(8.6, 6.4)
+    path.lineTo(10.4, 8.2)
+    path.lineTo(20.6, 8.2)
+    path.lineTo(20.6, 19.2)
+    path.lineTo(3.4, 19.2)
+    path.closeSubpath()
+    p.drawPath(path)
+
+
+def _draw_timetable(p: QPainter) -> None:
+    """달력."""
+    p.drawRoundedRect(QRectF(3.6, 5.4, 16.8, 15.0), 1.8, 1.8)
+    p.drawLine(QPointF(3.6, 9.4), QPointF(20.4, 9.4))
+    p.drawLine(QPointF(8.0, 3.8), QPointF(8.0, 7.2))
+    p.drawLine(QPointF(16.0, 3.8), QPointF(16.0, 7.2))
+    p.drawRect(QRectF(6.4, 12.0, 3.0, 3.0))
+    p.drawRect(QRectF(10.6, 12.0, 3.0, 3.0))
+    p.drawRect(QRectF(14.8, 12.0, 3.0, 3.0))
+
+
 _DRAW = {
     "home": _draw_home,
     "login": _draw_login,
@@ -163,6 +221,9 @@ _DRAW = {
     "logout": _draw_logout,
     "search": _draw_search,
     "pin": _draw_pin,
+    "notice": _draw_notice,
+    "material": _draw_material,
+    "timetable": _draw_timetable,
 }
 
 
@@ -178,7 +239,15 @@ class LineIcon(QWidget):
         stroke: float = 1.75,
         parent: QWidget | None = None,
     ) -> None:
-        """아이콘 이름과 크기, 선 색."""
+        """아이콘 이름과 크기, 선 색.
+
+        Args:
+            name: ``_DRAW`` 키.
+            size: 한 변 픽셀.
+            color: 선 색.
+            stroke: 선 두께.
+            parent: 부모 위젯.
+        """
         super().__init__(parent)
         self._name = name
         self._color = QColor(color)
@@ -190,14 +259,22 @@ class LineIcon(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
     def set_name(self, name: str) -> None:
-        """아이콘 종류를 바꾼다."""
+        """아이콘 종류를 바꾼다.
+
+        Args:
+            name: ``_DRAW`` 키.
+        """
         if name == self._name:
             return
         self._name = name
         self.update()
 
     def set_color(self, color: str | QColor) -> None:
-        """선 색."""
+        """선 색을 바꾼다.
+
+        Args:
+            color: 색 문자열 또는 ``QColor``.
+        """
         self._color = QColor(color)
         self.update()
 

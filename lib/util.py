@@ -1,4 +1,7 @@
-"""문자열 · 기간 · HTML · 콘솔 도우미."""
+"""문자열 · 기간 · HTML · 콘솔 도우미.
+
+짧은 함수는 Google 스타일, HTML/기간 파서처럼 역할이 큰 함수는 NumPy 스타일이다.
+"""
 
 from __future__ import annotations
 
@@ -11,19 +14,41 @@ from pathlib import Path
 from urllib.parse import quote
 
 def str_ieq(a: str | None, b: str | None) -> bool:
-    """대소문자 무시 비교."""
+    """대소문자 무시 비교.
+
+    Args:
+        a: 첫 문자열. None 가능.
+        b: 둘째 문자열. None 가능.
+
+    Returns:
+        둘 다 None이거나 대소문자만 다르면 True.
+    """
     if a is None or b is None:
         return a == b
     return a.lower() == b.lower()
 
 
 def normalize_space(s: str) -> str:
-    """연속 공백을 한 칸으로 줄인다."""
+    """연속 공백을 한 칸으로 줄인다.
+
+    Args:
+        s: 원문.
+
+    Returns:
+        앞뒤 공백을 없애고 중간 공백을 한 칸으로 만든 문자열.
+    """
     return " ".join(s.split())
 
 
 def decode_entities(s: str) -> str:
-    """e-campus HTML 에 나오는 기본 엔티티만 푼다."""
+    """e-campus HTML 에 나오는 기본 엔티티만 푼다.
+
+    Args:
+        s: ``&amp;`` 등이 섞인 문자열.
+
+    Returns:
+        엔티티를 풀어 낸 문자열. 알 수 없는 엔티티는 그대로 둔다.
+    """
     out: list[str] = []
     i = 0
     n = len(s)
@@ -68,7 +93,21 @@ _VOIDISH = {"br", "hr", "p", "div", "li", "tr", "h1", "h2", "h3"}
 
 
 def html_to_text(html: str | None) -> str:
-    """태그를 버리고 br/p 는 줄바꿈으로 바꾼 뒤 공백을 정규화한다."""
+    """태그를 버리고 본문만 남긴다.
+
+    ``script`` / ``style`` / ``noscript`` 는 통째로 건너뛴다.
+    ``br`` / ``p`` / ``div`` 등 블록 태그는 줄바꿈으로 바꾼 뒤 공백을 정규화한다.
+
+    Parameters
+    ----------
+    html : str or None
+        e-campus HTML 조각. None 또는 빈 문자열이면 빈 문자열.
+
+    Returns
+    -------
+    str
+        엔티티를 풀고 공백을 정리한 평문.
+    """
     if not html:
         return ""
     buf: list[str] = []
@@ -112,42 +151,92 @@ def html_to_text(html: str | None) -> str:
 
 
 def url_encode(s: str) -> str:
-    """application/x-www-form-urlencoded. `-_.!~*'()` 는 그대로 둔다."""
+    """``application/x-www-form-urlencoded``. ``-_.!~*'()`` 는 그대로 둔다.
+
+    Args:
+        s: 필드 값.
+
+    Returns:
+        percent-encoding 된 문자열.
+    """
     return quote(s, safe="-_.!~*'()", encoding="utf-8")
 
 
 def form_encode(fields: list[tuple[str, str]]) -> str:
-    """폼 필드를 application/x-www-form-urlencoded 로 붙인다."""
+    """폼 필드를 ``application/x-www-form-urlencoded`` 로 붙인다.
+
+    Args:
+        fields: ``(이름, 값)`` 목록.
+
+    Returns:
+        ``&`` 로 이은 본문.
+    """
     parts = [f"{url_encode(k)}={url_encode(v)}" for k, v in fields]
     return "&".join(parts)
 
 
 def read_file(path: str | Path) -> str:
-    """UTF-8 텍스트. 깨진 글자는 치환한다."""
+    """UTF-8 텍스트를 읽는다. 깨진 글자는 치환한다.
+
+    Args:
+        path: 파일 경로.
+
+    Returns:
+        파일 내용.
+    """
     p = Path(path)
     return p.read_bytes().decode("utf-8", errors="replace")
 
 
 def write_file(path: str | Path, data: str) -> None:
-    """UTF-8 로 쓰고, 없는 폴더는 만든다."""
+    """UTF-8 로 쓰고, 없는 폴더는 만든다.
+
+    Args:
+        path: 파일 경로.
+        data: 쓸 문자열.
+    """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(data.encode("utf-8"))
 
 
 def now_iso() -> str:
-    """로컬 시각 `YYYY-MM-DDTHH:MM:SS`."""
+    """로컬 시각 ``YYYY-MM-DDTHH:MM:SS``.
+
+    Returns:
+        ISO 비슷한 로컬 시각 문자열.
+    """
     t = datetime.now()
     return t.strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def local_ymdhms(y: int, mo: int, d: int, h: int, mi: int, s: int) -> float:
-    """로컬 달력 시각을 unix time 으로."""
+    """로컬 달력 시각을 unix time 으로 바꾼다.
+
+    Args:
+        y: 연.
+        mo: 월.
+        d: 일.
+        h: 시.
+        mi: 분.
+        s: 초.
+
+    Returns:
+        ``time.mktime`` 결과.
+    """
     return time.mktime((y, mo, d, h, mi, s, 0, 0, -1))
 
 
 def _parse_one_date(s: str, end_of_day: bool) -> tuple[float, str] | None:
-    """문자열에서 날짜 하나를 읽고 (시각, 나머지) 를 돌린다."""
+    """문자열에서 날짜 하나를 읽고 (시각, 나머지) 를 돌린다.
+
+    Args:
+        s: ``20YY...`` 가 들어 있는 구간.
+        end_of_day: True 면 시각이 없을 때 23:59:59.
+
+    Returns:
+        ``(unix time, 남은 문자열)``. 못 읽으면 None.
+    """
     p = s
     idx = p.find("20")
     while idx >= 0:
@@ -195,7 +284,20 @@ def _parse_one_date(s: str, end_of_day: bool) -> tuple[float, str] | None:
 
 
 def period_range(period: str | None) -> tuple[float, float] | None:
-    """`YYYY.MM.DD ~ YYYY.MM.DD` 구간을 로컬 시각으로 바꾼다."""
+    """제출·학습 기간 원문을 로컬 unix 구간으로 바꾼다.
+
+    괄호 안 메모는 버리고, 시작은 00:00:00, 끝은 시각이 없으면 23:59:59 로 둔다.
+
+    Parameters
+    ----------
+    period : str or None
+        ``YYYY.MM.DD ~ YYYY.MM.DD`` 형태. 시각이 붙어 있어도 된다.
+
+    Returns
+    -------
+    tuple of float or None
+        ``(시작, 끝)``. 두 날짜를 못 읽으면 None.
+    """
     if not period:
         return None
     cleaned: list[str] = []
@@ -220,7 +322,15 @@ def period_range(period: str | None) -> tuple[float, float] | None:
 
 
 def period_active(period: str | None, now: float | None = None) -> bool:
-    """지금이 제출·학습 기간 안인지."""
+    """지금이 제출·학습 기간 안인지 본다.
+
+    Args:
+        period: 기간 원문.
+        now: unix time. None 이면 현재 시각.
+
+    Returns:
+        구간을 읽었고 ``now`` 가 그 안이면 True.
+    """
     rng = period_range(period)
     if not rng:
         return False
@@ -231,7 +341,14 @@ def period_active(period: str | None, now: float | None = None) -> bool:
 
 
 def looks_like_login_html(html: str | None) -> bool:
-    """세션이 끊겨 로그인 페이지가 돌아왔는지."""
+    """세션이 끊겨 로그인 페이지가 돌아왔는지 본다.
+
+    Args:
+        html: 응답 본문.
+
+    Returns:
+        로그인 화면으로 보이면 True. 빈 본문도 True.
+    """
     if not html:
         return True
     low = html[:4095].lower()
@@ -239,7 +356,10 @@ def looks_like_login_html(html: str | None) -> bool:
 
 
 def enable_console() -> None:
-    """Windows 콘솔을 UTF-8 · ANSI 로 맞춘다."""
+    """Windows 콘솔을 UTF-8 · ANSI 로 맞춘다.
+
+    실패해도 호출을 계속한다.
+    """
     if os.name == "nt":
         try:
             import ctypes
@@ -260,7 +380,14 @@ def enable_console() -> None:
 
 
 def read_line(prompt: str = "") -> str:
-    """한 줄 입력. EOF 면 빈 문자열."""
+    """한 줄 입력. EOF 면 빈 문자열.
+
+    Args:
+        prompt: 앞에 찍을 안내.
+
+    Returns:
+        strip 한 입력. EOF 면 ``""``.
+    """
     try:
         return input(prompt).strip()
     except EOFError:
@@ -268,7 +395,21 @@ def read_line(prompt: str = "") -> str:
 
 
 def read_password(prompt: str = "비밀번호: ") -> str:
-    """마지막 글자만 잠깐 보여 주고 나머지는 * 로 가린다."""
+    """비밀번호를 받는다.
+
+    Windows 는 마지막 글자만 잠깐 보여 주고 나머지는 ``*`` 로 가린다.
+    그 외 OS 는 ``getpass`` 를 쓴다.
+
+    Parameters
+    ----------
+    prompt : str
+        입력 앞에 찍는 안내.
+
+    Returns
+    -------
+    str
+        입력한 비밀번호. Ctrl+C 에 해당하면 빈 문자열.
+    """
     if os.name != "nt":
         import getpass
 
@@ -282,7 +423,11 @@ def read_password(prompt: str = "비밀번호: ") -> str:
     vis = len(prompt)
 
     def paint(reveal_last: bool) -> None:
-        """같은 줄을 다시 그려 * 또는 마지막 글자를 보여 준다."""
+        """같은 줄을 다시 그려 ``*`` 또는 마지막 글자를 보여 준다.
+
+        Args:
+            reveal_last: True 면 마지막 ASCII 글자를 잠시 보여 준다.
+        """
         nonlocal vis
         sys.stdout.write("\r" + prompt)
         n = len(chars)
@@ -329,19 +474,28 @@ def pause() -> None:
 
 
 def sleep_ms(ms: int) -> None:
-    """밀리초 대기."""
+    """밀리초 대기.
+
+    Args:
+        ms: 기다릴 시간. 0 이하면 바로 돌아간다.
+    """
     if ms > 0:
         time.sleep(ms / 1000.0)
 
 
 def term_clear() -> None:
-    """콘솔 화면을 지운다."""
+    """콘솔 화면을 지우고 커서를 왼쪽 위로 보낸다."""
     sys.stdout.write("\033[2J\033[H")
     sys.stdout.flush()
 
 
 def load_spin(total_speed: int, plus_text: str = "") -> None:
-    """한 구간의 로딩 막대. SeowonProject LoadSpin 을 따른다."""
+    """한 구간의 로딩 막대를 돌린다.
+
+    Args:
+        total_speed: 막대 길이 스케일. 0 이하면 10.
+        plus_text: 퍼센트 앞에 붙는 접두어.
+    """
     if total_speed <= 0:
         total_speed = 10
     download_speed = 10
@@ -359,7 +513,13 @@ def load_spin(total_speed: int, plus_text: str = "") -> None:
 
 
 def load_spin_step(current: int, total: int, plus_text: str = "") -> None:
-    """여러 과목을 돌 때 한 칸만 갱신한다."""
+    """여러 과목을 돌 때 한 칸만 갱신한다.
+
+    Args:
+        current: 지금까지 끝난 개수.
+        total: 전체 개수. 0 이하면 1.
+        plus_text: 퍼센트 앞 접두어.
+    """
     cursor = "|/-\\"
     if total <= 0:
         total = 1
@@ -370,13 +530,17 @@ def load_spin_step(current: int, total: int, plus_text: str = "") -> None:
 
 
 def load_spin_done() -> None:
-    """로딩 줄을 지운다."""
+    """로딩 줄을 공백으로 덮어 지운다."""
     sys.stdout.write("\r                                                                  \r")
     sys.stdout.flush()
 
 
 def disappear_text(text: str) -> None:
-    """글자를 깜빡이며 보여 준 뒤 지운다."""
+    """글자를 깜빡이며 보여 준 뒤 지운다.
+
+    Args:
+        text: 표시할 문자열.
+    """
     if not text:
         text = ""
     for i in range(2):
@@ -392,5 +556,13 @@ def disappear_text(text: str) -> None:
 
 
 def char_in(value: str, sett: str) -> bool:
-    """한 글자 메뉴 키가 sett 에 있는지."""
+    """한 글자 메뉴 키가 ``sett`` 에 있는지 본다.
+
+    Args:
+        value: 입력한 키.
+        sett: 허용 글자 집합.
+
+    Returns:
+        비어 있지 않고 ``sett`` 에 있으면 True.
+    """
     return bool(value) and value in sett

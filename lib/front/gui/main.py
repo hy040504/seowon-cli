@@ -15,7 +15,14 @@ if str(HERE) not in sys.path:
 
 
 def _fail(msg: str) -> int:
-    """시작 실패를 콘솔·로그·알림창에 남긴다."""
+    """시작 실패를 콘솔·로그·알림창에 남긴다.
+
+    Args:
+        msg: 오류 본문.
+
+    Returns:
+        항상 1.
+    """
     print(msg, file=sys.stderr, flush=True)
     log = ROOT / "seowon-gui.log"
     try:
@@ -32,7 +39,11 @@ def _fail(msg: str) -> int:
 
 
 def main() -> int:
-    """PyQt 창을 띄운다."""
+    """PyQt 창을 띄운다.
+
+    Returns:
+        ``QApplication.exec`` 코드. 불러오기 실패면 1.
+    """
     try:
         import os
 

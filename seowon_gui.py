@@ -12,7 +12,11 @@ SCRIPT = ROOT / "lib" / "front" / "gui" / "main.py"
 
 
 def _ensure_pyqt() -> str:
-    """PyQt6 가 없으면 지금 쓰는 python 에 설치한다."""
+    """PyQt6 가 없으면 지금 쓰는 python 에 설치한다.
+
+    Returns:
+        성공이면 빈 문자열, 실패면 안내 문구.
+    """
     try:
         import PyQt6  # noqa: F401
 
@@ -36,7 +40,11 @@ def _ensure_pyqt() -> str:
 
 
 def main() -> int:
-    """lib/front/gui/main.py 를 실행한다."""
+    """``lib/front/gui/main.py`` 를 실행한다.
+
+    Returns:
+        창이 닫힌 뒤의 종료 코드. 실패면 1.
+    """
     if not SCRIPT.is_file():
         print(f"화면 파일을 찾지 못했습니다.\n{SCRIPT}", file=sys.stderr)
         return 1

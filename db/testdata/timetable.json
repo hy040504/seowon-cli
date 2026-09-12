@@ -1,0 +1,31 @@
+{
+  "subjects": [
+    {
+      "subjtCd": "COMP210",
+      "subjtNm": "논리회로",
+      "corseDvclsNo": "01",
+      "cmpsjCdt": "3",
+      "chrgInstrEmpnm": "김교수",
+      "timtbNm": "월 1,2,3 공학관301\n수 1,2 공학관301",
+      "kind": "전공"
+    },
+    {
+      "subjtCd": "GEN101",
+      "subjtNm": "대학영어",
+      "corseDvclsNo": "03",
+      "cmpsjCdt": "2",
+      "chrgInstrEmpnm": "이교수",
+      "timtbNm": "화 5,6 인문관201",
+      "kind": "교양"
+    },
+    {
+      "subjtCd": "COMP220",
+      "subjtNm": "자료구조",
+      "corseDvclsNo": "01",
+      "cmpsjCdt": "3",
+      "chrgInstrEmpnm": "박교수",
+      "timtbNm": "목 3,4,5 컴퓨터실습실3",
+      "kind": "전공"
+    }
+  ]
+}

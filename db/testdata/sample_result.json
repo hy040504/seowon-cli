@@ -5,11 +5,13 @@
 			"courseTitle":	"논리회로",
 			"crsCreCd":	"2026_1_736078_01",
 			"assignments":	[{
+					"id":	"ASMNT_260514T102030_a1b2c3d",
 					"title":	"강의노트 2",
 					"period":	"2026.05.14 ~ 2026.05.21",
 					"status":	"미제출",
 					"dueNow":	false
 				}, {
+					"id":	"ASMNT_260810T090000_midterm",
 					"title":	"중간 대체 과제",
 					"period":	"2026.08.10 ~ 2026.08.20",
 					"status":	"미제출",

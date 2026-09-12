@@ -37,6 +37,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -57,7 +58,14 @@ LOGO_SVG = ASSETS / "seowon-logo.svg"
 
 
 def logo_pixmap(size: int = 36) -> QPixmap:
-    """서원대 로고. 없으면 빈 그림."""
+    """서원대 로고. 없으면 빈 그림.
+
+    Args:
+        size: 한 변 픽셀.
+
+    Returns:
+        로고 또는 빈 ``QPixmap``.
+    """
     if not LOGO_SVG.is_file():
         return QPixmap()
     pix = QIcon(str(LOGO_SVG)).pixmap(size, size)
@@ -65,14 +73,24 @@ def logo_pixmap(size: int = 36) -> QPixmap:
 
 
 def _refresh(widget: QWidget) -> None:
-    """objectName / property 를 바꾼 뒤 QSS 를 다시 입힌다."""
+    """objectName / property 를 바꾼 뒤 QSS 를 다시 입힌다.
+
+    Args:
+        widget: 다시 그릴 위젯.
+    """
     widget.style().unpolish(widget)
     widget.style().polish(widget)
     widget.update()
 
 
 def _keep_anim(widget: QWidget, key: str, anim: QPropertyAnimation | QVariantAnimation) -> None:
-    """애니메이션이 GC 되지 않게 위젯에 붙인다."""
+    """애니메이션이 GC 되지 않게 위젯에 붙인다.
+
+    Args:
+        widget: 속성 호스트.
+        key: ``setattr`` 이름.
+        anim: 재생 중인 애니메이션.
+    """
     setattr(widget, key, anim)
 
 
@@ -84,7 +102,19 @@ def fade_opacity(
     done: Callable[[], None] | None = None,
     easing: QEasingCurve.Type = QEasingCurve.Type.OutCubic,
 ) -> QPropertyAnimation:
-    """투명도를 바꾼다. 끝나면 이펙트를 떼지 않고 1이면 정리한다."""
+    """투명도를 바꾼다. 끝나면 이펙트를 떼지 않고 1이면 정리한다.
+
+    Args:
+        widget: 대상.
+        start: 시작 투명도.
+        end: 끝 투명도.
+        duration: 밀리초.
+        done: 끝나면 부를 콜백.
+        easing: 곡선.
+
+    Returns:
+        시작한 ``QPropertyAnimation``.
+    """
     prev = getattr(widget, "_op_anim", None)
     if isinstance(prev, QPropertyAnimation):
         prev.stop()
@@ -715,7 +745,18 @@ class JobRow(QFrame):
         payload: Any = None,
         parent: QWidget | None = None,
     ) -> None:
-        """제목·메타·알약·액션 버튼을 한 줄에 놓는다."""
+        """제목·메타·알약·액션 버튼을 한 줄에 놓는다.
+
+        Args:
+            title: 제목.
+            meta: 기간·상태 등 보조 줄.
+            badge: 알약 글자.
+            badge_kind: ``due`` / ``miss`` / ``done`` 등.
+            hot: 강조 문구.
+            action: 오른쪽 버튼. 비면 숨김.
+            payload: 클릭 때 돌려줄 값.
+            parent: 부모 위젯.
+        """
         super().__init__(parent)
         self.setObjectName("jobRow")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -826,6 +867,43 @@ class EmptyState(QWidget):
             lay.addWidget(self.btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
 
+class JobItem(QFrame):
+    """웹 .job-item. 행 아래에 상세 칸을 펼친다."""
+
+    def __init__(self, row: JobRow, parent: QWidget | None = None) -> None:
+        """행만 넣고 펼침 칸은 비워 둔다."""
+        super().__init__(parent)
+        self.setObjectName("jobItem")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.row = row
+        self._expand: QWidget | None = None
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addWidget(row)
+        self._lay = lay
+
+    def set_expand(self, widget: QWidget | None) -> None:
+        """선택 행 아래 상세. None 이면 접는다.
+
+        Args:
+            widget: 펼칠 위젯. None 이면 접는다.
+        """
+        if self._expand is widget:
+            return
+        if self._expand is not None:
+            self._lay.removeWidget(self._expand)
+            self._expand.hide()
+            self._expand.setParent(None)
+            self._expand.deleteLater()
+            self._expand = None
+        if widget is not None:
+            widget.setObjectName("jobExpand")
+            widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            self._expand = widget
+            self._lay.addWidget(widget)
+
+
 class JobList(QFrame):
     """웹 .job-list. 헤더·행·빈 화면을 한 카드에 담는다."""
 
@@ -838,6 +916,7 @@ class JobList(QFrame):
         self.setObjectName("jobList")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._rows: list[JobRow] = []
+        self._items: list[JobItem] = []
         self._selected: JobRow | None = None
         self._shadow = QGraphicsDropShadowEffect(self)
         self.setGraphicsEffect(self._shadow)
@@ -863,6 +942,7 @@ class JobList(QFrame):
     def clear(self) -> None:
         """헤더·행·빈 화면을 모두 지운다."""
         self._rows.clear()
+        self._items.clear()
         self._selected = None
         self._fade_i = 0
         while self._box.count():
@@ -894,9 +974,30 @@ class JobList(QFrame):
         """행을 붙이고 클릭·액션을 연결한다."""
         row.clicked.connect(self._on_click)
         row.acted.connect(self.row_acted.emit)
+        item = JobItem(row)
         self._rows.append(row)
-        self._box.addWidget(row)
-        self._stagger(row)
+        self._items.append(item)
+        self._box.addWidget(item)
+        self._stagger(item)
+
+    def set_expand(self, widget: QWidget | None) -> None:
+        """고른 행 아래에 상세 칸을 붙인다.
+
+        Args:
+            widget: 펼칠 위젯. None 이면 모든 행을 접는다.
+        """
+        for it in self._items:
+            if widget is not None and it.row is self._selected:
+                it.set_expand(widget)
+            else:
+                it.set_expand(None)
+
+    def find_row(self, pred: Callable[[JobRow], bool]) -> JobRow | None:
+        """조건에 맞는 첫 행."""
+        for row in self._rows:
+            if pred(row):
+                return row
+        return None
 
     def _stagger(self, widget: QWidget) -> None:
         """목록이 위에서부터 차례로 나타난다."""
@@ -916,11 +1017,18 @@ class JobList(QFrame):
         self._box.addStretch(1)
 
     def _on_click(self, row: JobRow) -> None:
-        """한 줄만 선택한다."""
+        """한 줄만 선택한다. 같은 줄을 다시 누르면 접는다."""
+        if self._selected is row:
+            row.set_selected(False)
+            self._selected = None
+            self.set_expand(None)
+            self.row_clicked.emit(None)
+            return
         if self._selected is not None:
             self._selected.set_selected(False)
         self._selected = row
         row.set_selected(True)
+        self.set_expand(None)
         self.row_clicked.emit(row)
 
 
@@ -1215,6 +1323,112 @@ class NavButton(QPushButton):
         )
 
 
+class TimetableBoard(QFrame):
+    """요일×교시 격자. 웹 SVG와 같은 팔레트."""
+
+    DAYS = ("월", "화", "수", "목", "금")
+    PALETTE = (
+        ("#dbeafe", "#1e3a8a"),
+        ("#dcfce7", "#14532d"),
+        ("#fef3c7", "#78350f"),
+        ("#fce7f3", "#831843"),
+        ("#e0e7ff", "#312e81"),
+        ("#ffedd5", "#7c2d12"),
+        ("#ccfbf1", "#134e4a"),
+        ("#ede9fe", "#4c1d95"),
+    )
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        """빈 격자."""
+        super().__init__(parent)
+        self.setObjectName("card")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(10, 10, 10, 10)
+        self._grid.setSpacing(4)
+        self._cells: list[QWidget] = []
+        self.show_empty("조회하면 이번 학기 시간표를 그립니다.")
+
+    def _clear(self) -> None:
+        """칸을 비운다."""
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        self._cells.clear()
+
+    def show_empty(self, text: str) -> None:
+        """안내 문구."""
+        self._clear()
+        lab = QLabel(text)
+        lab.setObjectName("caption")
+        lab.setWordWrap(True)
+        lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._grid.addWidget(lab, 0, 0)
+
+    def set_data(self, data: dict[str, Any]) -> None:
+        """cells/subjects 로 격자를 채운다."""
+        self._clear()
+        subjects = list(data.get("subjects") or [])
+        color_of: dict[str, int] = {}
+        for i, sub in enumerate(subjects):
+            color_of[f"{sub.get('subjtCd')}-{sub.get('corseDvclsNo')}"] = i % len(self.PALETTE)
+        lookup: dict[str, dict[str, Any]] = {}
+        max_period = int(data.get("maxPeriod") or 10)
+        for cell in data.get("cells") or []:
+            day = str(cell.get("day") or "")
+            period = int(cell.get("period") or 0)
+            lookup[f"{day}:{period}"] = cell
+            if period > max_period:
+                max_period = period
+        corner = QLabel("시각")
+        corner.setObjectName("field")
+        corner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._grid.addWidget(corner, 0, 0)
+        for i, day in enumerate(self.DAYS):
+            h = QLabel(day)
+            h.setObjectName("hello")
+            h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._grid.addWidget(h, 0, i + 1)
+        for p in range(1, max_period + 1):
+            time_lab = QLabel(f"{p}")
+            time_lab.setObjectName("hint")
+            time_lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            time_lab.setMinimumWidth(36)
+            self._grid.addWidget(time_lab, p, 0)
+            for i, day in enumerate(self.DAYS):
+                cell = lookup.get(f"{day}:{p}")
+                box = QFrame()
+                box.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+                box.setMinimumHeight(52)
+                lay = QVBoxLayout(box)
+                lay.setContentsMargins(6, 6, 6, 6)
+                lay.setSpacing(2)
+                if cell and cell.get("subjects"):
+                    first = cell["subjects"][0]
+                    key = f"{first.get('subjtCd')}-{first.get('corseDvclsNo')}"
+                    fill, text = self.PALETTE[color_of.get(key, 0)]
+                    border = "#dc2626" if cell.get("hasConflict") else fill
+                    box.setStyleSheet(
+                        f"background:{fill}; border:2px solid {border}; border-radius:10px;"
+                    )
+                    name = QLabel(str(first.get("subjtNm") or ""))
+                    name.setStyleSheet(f"color:{text}; font-weight:800; font-size:11px; background:transparent;")
+                    name.setWordWrap(True)
+                    name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    meta = QLabel(str(first.get("place") or first.get("chrgInstrEmpnm") or ""))
+                    meta.setStyleSheet(f"color:{text}; font-size:10px; background:transparent;")
+                    meta.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    meta.setWordWrap(True)
+                    lay.addWidget(name)
+                    lay.addWidget(meta)
+                else:
+                    box.setStyleSheet("background:transparent; border:1px solid rgba(0,0,0,0.06); border-radius:8px;")
+                self._grid.addWidget(box, p, i + 1)
+                self._cells.append(box)
+
+
 class Sidebar(QWidget):
     """태블릿처럼 고정 폭 파스텔 레일. 메뉴 글자는 아이콘 아래 항상 보인다."""
 
@@ -1237,16 +1451,28 @@ class Sidebar(QWidget):
         self.logo.hide()
         self.lay.addSpacing(4)
 
+        nav_wrap = QWidget()
+        nav_wrap.setObjectName("sidebar")
+        nav_l = QVBoxLayout(nav_wrap)
+        nav_l.setContentsMargins(0, 0, 0, 0)
+        nav_l.setSpacing(4)
         self.nav_btns: list[NavButton] = []
         for i, (icon, name) in enumerate(items):
             btn = NavButton(icon, name)
             btn.clicked.connect(lambda _=False, idx=i: self.nav_clicked.emit(idx))
             self.nav_btns.append(btn)
-            self.lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignHCenter)
+            nav_l.addWidget(btn, 0, Qt.AlignmentFlag.AlignHCenter)
+        nav_l.addStretch(1)
+        nav_sc = QScrollArea()
+        nav_sc.setObjectName("sidebar")
+        nav_sc.setWidgetResizable(True)
+        nav_sc.setFrameShape(QFrame.Shape.NoFrame)
+        nav_sc.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        nav_sc.setWidget(nav_wrap)
         if self.nav_btns:
             self.nav_btns[0].setChecked(True)
             self.nav_btns[0].apply_state()
-        self.lay.addStretch(1)
+        self.lay.addWidget(nav_sc, 1)
 
         self.chip = QFrame()
         self.chip.setObjectName("chip")
@@ -1269,6 +1495,7 @@ class Sidebar(QWidget):
         chip_l.addWidget(self.avatar, 0, Qt.AlignmentFlag.AlignHCenter)
         chip_l.addWidget(self.chip_name)
         chip_l.addWidget(self.chip_sub)
+        self.chip_sub.hide()
         self.lay.addWidget(self.chip)
 
         self.logout_btn = QPushButton("Log out")
@@ -1293,9 +1520,11 @@ class Sidebar(QWidget):
             btn.apply_state()
 
     def set_profile(self, name: str, sub: str, letter: str) -> None:
-        """아래 아바타의 이름·보조·이니셜."""
+        """아래 아바타의 이름·이니셜. 학과는 홈 Profile 에 둔다."""
+        del sub
         self.chip_name.setText(name)
-        self.chip_sub.setText(sub)
+        self.chip_sub.clear()
+        self.chip_sub.hide()
         self.avatar.setText(letter)
 
     def set_logged_in(self, on: bool) -> None:

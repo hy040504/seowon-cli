@@ -7,7 +7,17 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Theme:
-    """라이트는 태블릿 목업, 다크는 같은 구조를 남색으로."""
+    """라이트는 태블릿 목업, 다크는 같은 구조를 남색으로.
+
+    Attributes:
+        name: ``light`` 또는 ``dark``.
+        blue: 기본 포인트.
+        pink: 강조 포인트.
+        bg: 창 배경.
+        surface: 카드 배경.
+        text: 본문 색.
+        sidebar: 왼쪽 레일.
+    """
 
     name: str
     blue: str
@@ -108,13 +118,24 @@ CURRENT = LIGHT
 
 
 def set_current(theme: Theme) -> None:
-    """위젯 paint 가 읽을 현재 테마를 바꾼다."""
+    """위젯 paint 가 읽을 현재 테마를 바꾼다.
+
+    Args:
+        theme: ``LIGHT`` 또는 ``DARK``.
+    """
     global CURRENT
     CURRENT = theme
 
 
 def qss(t: Theme) -> str:
-    """태블릿 목업처럼 둥근 카드와 파랑/핑크 포인트를 입힌다."""
+    """태블릿 목업처럼 둥근 카드와 파랑/핑크 포인트를 입힌다.
+
+    Args:
+        t: 적용할 테마.
+
+    Returns:
+        ``QApplication.setStyleSheet`` 에 넣을 QSS.
+    """
     ghost_bg = "#EEF2FF" if t.name == "light" else t.input_bg
     ghost_border = "#D5DCF5" if t.name == "light" else "#4A5280"
     combo_border = "#C9D2F0" if t.name == "light" else "#5A6490"
@@ -312,6 +333,18 @@ QPushButton#pillBtn {{
     font-size: 11px;
     font-weight: 800;
 }}
+QPushButton#shortBtn {{
+    background: {t.blue};
+    color: #FFFFFF;
+    border: none;
+    border-radius: 14px;
+    padding: 4px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    min-width: 64px;
+    min-height: 32px;
+}}
+QPushButton#shortBtn:hover {{ background: {t.blue_hover}; color: #FFFFFF; }}
 QPushButton#jobAct {{
     background: {t.blue};
     color: #FFFFFF;
@@ -409,6 +442,19 @@ QFrame#jobRow:hover {{
 }}
 QFrame#jobRow[selected="true"] {{
     background: {t.blue_soft};
+}}
+QFrame#jobItem {{
+    background: transparent;
+    border: none;
+}}
+QWidget#jobExpand {{
+    background: {t.surface};
+    border: none;
+    border-bottom: 1px solid {t.line};
+}}
+QTextEdit#jobBody {{
+    min-height: 88px;
+    max-height: 180px;
 }}
 QLabel#jobTitle {{
     font-size: 16px;
@@ -609,9 +655,17 @@ QLabel#shortName {{
     color: {t.text};
 }}
 QLabel#memberName {{
+    font-size: 15px;
+    font-weight: 800;
+    color: {t.text};
+}}
+QLabel#memberMeta {{
+    font-size: 12px;
+    color: {t.text_2};
+}}
+QLabel#memberHint {{
     font-size: 11px;
-    font-weight: 700;
-    color: {t.pink};
+    color: {t.text_3};
 }}
 QScrollArea {{
     border: none;

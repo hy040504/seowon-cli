@@ -1,4 +1,7 @@
-"""NICE e-campus 로그인 encryptData. JS login-crypto.cjs 와 같은 벡터."""
+"""NICE e-campus 로그인 ``encryptData``. JS ``login-crypto.cjs`` 와 같은 벡터.
+
+로그인 화면의 DES-CBC + Base64 묶음을 Python 으로 재현한다.
+"""
 
 from __future__ import annotations
 
@@ -122,17 +125,43 @@ SP8 = [
 
 
 def _u32(x: int) -> int:
-    """32비트로 자른다."""
+    """32비트로 자른다.
+
+    Args:
+        x: 정수.
+
+    Returns:
+        하위 32비트.
+    """
     return x & 0xFFFFFFFF
 
 
 def _bget(s: bytes, i: int) -> int:
-    """범위 밖이면 0."""
+    """바이트를 읽는다. 범위 밖이면 0.
+
+    Args:
+        s: 버퍼.
+        i: 인덱스.
+
+    Returns:
+        ``s[i]`` 또는 0.
+    """
     return s[i] if i < len(s) else 0
 
 
 def _des_create_keys(key: bytes) -> list[int]:
-    """NICE DES 서브키. 24바이트면 3중 DES."""
+    """NICE DES 서브키를 만든다.
+
+    Parameters
+    ----------
+    key : bytes
+        8바이트면 DES, 24바이트면 3중 DES.
+
+    Returns
+    -------
+    list of int
+        라운드 서브키. 32개 또는 96개.
+    """
     shifts = [0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0]
     iterations = 3 if len(key) >= 24 else 1
     keys: list[int] = []
@@ -202,7 +231,28 @@ def _des_create_keys(key: bytes) -> list[int]:
 
 
 def _nice_des(key: bytes, msg: bytes, encrypt: bool, mode: int, iv: bytes) -> bytes:
-    """mode 1 은 CBC. 로그인 encryptData 는 암호화만 쓴다."""
+    """NICE 포탈과 같은 DES/3DES 블록 암호.
+
+    ``mode == 1`` 은 CBC. 로그인 ``encryptData`` 는 암호화만 쓴다.
+
+    Parameters
+    ----------
+    key : bytes
+        DES 키. 24바이트면 3중 DES.
+    msg : bytes
+        8바이트 배수 평문/암호문.
+    encrypt : bool
+        True 면 암호화.
+    mode : int
+        1 이면 CBC, 그 외는 ECB 에 가깝다.
+    iv : bytes
+        CBC 초기 벡터. 보통 키와 같다.
+
+    Returns
+    -------
+    bytes
+        8바이트 배수 결과.
+    """
     keys = _des_create_keys(key)
     nkeys = len(keys)
     if nkeys == 32:
@@ -321,17 +371,36 @@ def _nice_des(key: bytes, msg: bytes, encrypt: bool, mode: int, iv: bytes) -> by
 
 
 def _b64_encode(data: bytes) -> str:
-    """표준 Base64. NICE 알파벳과 같다."""
+    """표준 Base64. NICE 알파벳과 같다.
+
+    Args:
+        data: 바이너리.
+
+    Returns:
+        ASCII Base64.
+    """
     return base64.b64encode(data).decode("ascii")
 
 
 def random_key24() -> str:
-    """로그인마다 바뀌는 24자 키."""
+    """로그인마다 바뀌는 24자 키.
+
+    Returns:
+        NICE 알파벳에서 고른 24글자.
+    """
     return "".join(secrets.choice(KEYSTR[:64]) for _ in range(24))
 
 
 def make_encrypt_info(plain: str, key24: str) -> str:
-    """평문을 DES-CBC 한 뒤 `키!#!암호` 를 Base64 로 묶는다."""
+    """평문을 DES-CBC 한 뒤 ``키!#!암호`` 를 Base64 로 묶는다.
+
+    Args:
+        plain: UTF-8 평문.
+        key24: 24자 ASCII 키.
+
+    Returns:
+        로그인 POST 에 넣는 ``encryptData``.
+    """
     key_b = key24.encode("ascii")
     cipher = _nice_des(key_b, plain.encode("utf-8"), True, 1, key_b)
     packed = key_b + DELIM.encode("ascii") + cipher
@@ -339,7 +408,16 @@ def make_encrypt_info(plain: str, key24: str) -> str:
 
 
 def make_encrypt_data_with_key(user_id: str, password: str, key24: str) -> str:
-    """고정 키로 encryptData 를 만든다. 단위 테스트용."""
+    """고정 키로 ``encryptData`` 를 만든다. 단위 테스트용.
+
+    Args:
+        user_id: 학번.
+        password: 비밀번호.
+        key24: 재현용 24자 키.
+
+    Returns:
+        Base64 ``encryptData``.
+    """
     enc_id = url_encode(user_id or "")
     enc_pw = url_encode(password or "")
     plain = f"{enc_id}{DELIM}{enc_pw}{DELIM}undefined{DELIM}undefined"
@@ -347,5 +425,13 @@ def make_encrypt_data_with_key(user_id: str, password: str, key24: str) -> str:
 
 
 def make_encrypt_data(user_id: str, password: str) -> str:
-    """로그인 POST 의 encryptData 값."""
+    """로그인 POST 의 ``encryptData`` 값.
+
+    Args:
+        user_id: 학번.
+        password: 비밀번호.
+
+    Returns:
+        무작위 키로 만든 ``encryptData``.
+    """
     return make_encrypt_data_with_key(user_id, password, random_key24())
