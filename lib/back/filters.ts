@@ -280,6 +280,14 @@ function cellText(html: string): string {
     .trim();
 }
 
+/** 칸 글자가 퍼센트인지. 번호·날짜는 % 가 없다. */
+function percentCell(raw: string): number | null {
+  if (!/\d/.test(raw) || !/%|％/.test(raw)) return null;
+  const m = raw.match(/(\d{1,3}(?:\.\d+)?)\s*[%％]/);
+  if (!m?.[1]) return null;
+  return clampPercent(Number(m[1]));
+}
+
 /** 진도율 칸의 퍼센트를 모은다. 앞 행이 0이어도 뒤 행의 값을 버린다. */
 function collectHtmlPercents(html: string, found: number[]): void {
   const rows = html.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
@@ -287,18 +295,25 @@ function collectHtmlPercents(html: string, found: number[]): void {
   for (const row of rows) {
     const cells = [...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) => cellText(m[1] || ""));
     if (!cells.length) continue;
+    for (const cell of cells) {
+      const marked = percentCell(cell);
+      if (marked != null) found.push(marked);
+    }
     if (ratioIndex < 0) {
-      ratioIndex = cells.findIndex((cell) => /진도율|학습률|진행률|prgrRatio|prgrRate/i.test(cell));
+      ratioIndex = cells.findIndex((cell) => /진도|학습률|진행률|prgrRatio|prgrRate/i.test(cell));
       continue;
     }
     const raw = cells[ratioIndex];
     if (raw == null) continue;
-    const n = percentToken(raw);
+    const n = percentToken(raw) ?? percentCell(raw);
     if (n != null) found.push(n);
   }
 
-  const text = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ");
-  for (const match of text.matchAll(/(?:진도율|학습률|진행률|prgrRatio|prgrRate|studyPrgrRatio|progressPercent)[^%]{0,240}?(\d{1,3}(?:\.\d+)?)\s*%/gi)) {
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+  for (const match of text.matchAll(/(?:진도율|진도|학습률|진행률|prgrRatio|prgrRate|studyPrgrRatio|progressPercent)[^%]{0,80}?(\d{1,3}(?:\.\d+)?)\s*[%％]/gi)) {
     const n = Number(match[1]);
     if (Number.isFinite(n)) found.push(clampPercent(n));
   }
@@ -317,13 +332,13 @@ function collectHtmlPercents(html: string, found: number[]): void {
  * 이력 행이 여러 개면 가장 높은 진도율을 쓴다. 이력이 없을 때만 0 이다.
  */
 function progressFromHtml(html: string): number | null {
-  const login = /user\/userHome\/login|name=["']encryptData["']|id=["']loginForm["']/i.test(html);
-  if (login) return null;
   const found: number[] = [];
   collectHtmlPercents(html, found);
   if (found.length) return Math.max(...found);
   const text = html.replace(/<[^>]+>/g, " ");
-  if (/조회된\s*데이터가\s*없습니다/.test(text)) return 0;
+  if (/조회된\s*데이터가\s*없습니다|학습\s*이력이\s*없|내역이\s*없습니다/.test(text)) return 0;
+  const login = /name=["']encryptData["']|id=["']loginForm["']|type=["']password["']/i.test(html) && /로그인/.test(text);
+  if (login) return null;
   return null;
 }
 

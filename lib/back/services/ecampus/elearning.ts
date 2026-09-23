@@ -59,35 +59,43 @@ export async function fetchProgress(
   lessonCntsId: string,
   studentId: string
 ): Promise<number> {
-  const stdNo = `${crsCreCd}_${studentId}`;
-  const response = await client.http.post(
-    "/lesson/lessonLect/viewLessonStudyDetail",
-    new URLSearchParams({
-      lessonCntsId,
-      prgrRatioTypeCd: "STUDY_TOTAL_TM",
-      stdNo,
-      crsCreCd,
-      pageIndex: "1",
-      listScale: "100"
-    }),
-    {
-      headers: {
-        ...COMMON_AJAX_HEADERS,
-        Accept: "application/json, text/javascript, */*; q=0.01",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Referer: `https://ecampus.seowon.ac.kr/lesson/lessonLect/viewLessonStudyDetail?crsCreCd=${encodeURIComponent(crsCreCd)}`
+  const form = await client.readLessonFormFields(crsCreCd);
+  const stdNo = form.stdNo || `${crsCreCd}_${studentId}`;
+  const types = [...new Set([form.prgrRatioTypeCd, "STUDY_TOTAL_TM", "WEEK", "PAGE"].filter(Boolean))];
+  const preferred = types[0] || "";
+  let best: number | null = null;
+  for (const prgrRatioTypeCd of types) {
+    const response = await client.http.post(
+      "/lesson/lessonLect/viewLessonStudyDetail",
+      new URLSearchParams({
+        lessonCntsId,
+        prgrRatioTypeCd,
+        stdNo,
+        crsCreCd,
+        pageIndex: "1",
+        listScale: "10"
+      }),
+      {
+        headers: {
+          ...COMMON_AJAX_HEADERS,
+          Accept: "text/html, */*; q=0.01",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Origin: client.baseUrl.replace(/\/$/, ""),
+          Referer: form.referer
+        },
+        responseType: "text",
+        timeout: 60000
       }
-    }
-  );
-  let data: unknown = response.data;
-  if (typeof data === "string") {
-    try {
-      data = JSON.parse(data);
-    } catch {
-      // JSON 이 아니면 문자열 트리에서 숫자를 찾는다
-    }
+    );
+    const pct = findProgressPercent(response.data);
+    if (pct == null) continue;
+    if (best == null || pct > best) best = pct;
+    if (prgrRatioTypeCd === preferred && pct > 0) break;
   }
-  const pct = findProgressPercent(data);
-  if (pct == null) throw new Error("학습률 응답을 해석하지 못했습니다.");
-  return pct;
+  if (best == null) {
+    const fallback = await client.viewLessonStudyDetail(lessonCntsId, crsCreCd);
+    best = findProgressPercent(fallback);
+  }
+  if (best == null) throw new Error("학습률 응답을 해석하지 못했습니다.");
+  return best;
 }

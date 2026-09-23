@@ -133,6 +133,19 @@ const MAIN_PAGE_PATH = "/home/mainHome/Form/main";
 const DEFAULT_LESSON_MENU_CODE = "MH_210504T143020d03000a";
 const DEFAULT_PROGRESS_TYPE_CD = "WEEK";
 
+/** 강의실 HTML hidden input 의 value. name 과 value 순서는 둘 다 본다. */
+function hiddenInput(html: string, name: string): string {
+  const tag = html.match(new RegExp(`<input\\b[^>]*\\bname=["']${name}["'][^>]*>`, "i"))?.[0] || "";
+  const direct = tag.match(/\bvalue=["']([^"']*)["']/i)?.[1];
+  if (direct) return direct;
+  return html.match(new RegExp(`<input\\b[^>]*\\bvalue=["']([^"']*)["'][^>]*\\bname=["']${name}["'][^>]*>`, "i"))?.[1] || "";
+}
+
+/** 강의실 스크립트의 stdNo · prgrRatioTypeCd 대입. */
+function jsAssign(html: string, name: string): string {
+  return html.match(new RegExp(`\\b${name}\\b\\s*[:=]\\s*["']([^"']+)["']`))?.[1] || "";
+}
+
 /**
  * e-campus 연동을 총괄하는 코어 클라이언트 클래스.
  * Senior Engineer 원칙에 따라 데이터 파싱 로직은 외부로 위임하고 세션 및 라이프사이클 관리에 집중한다.
@@ -142,6 +155,7 @@ export class EcampusClient {
   readonly cookieJar: CookieJar;
   readonly http: AxiosInstance;
   private loginCredentials?: LoginCredentials;
+  private lessonFormCache = new Map<string, { stdNo: string; prgrRatioTypeCd: string; referer: string }>();
 
   /**
    * 클라이언트 인스턴스를 초기화하고 통신 인터셉터를 구성한다.
@@ -722,6 +736,38 @@ export class EcampusClient {
       }
     });
     return response.data;
+  }
+
+  /**
+   * 이러닝 목록 화면에 박혀 있는 학생 번호와 진도 방식을 읽는다.
+   * 학습률 조회는 이 값으로 해야 이력 표가 나온다.
+   */
+  async readLessonFormFields(crsCreCd: string): Promise<{ stdNo: string; prgrRatioTypeCd: string; referer: string }> {
+    const cached = this.lessonFormCache.get(crsCreCd);
+    if (cached) return cached;
+    await this.ensureAuthenticated();
+    const formUrl = new URL("/lesson/lessonLect/Form/lessonListForm", this.baseUrl);
+    formUrl.searchParams.set("mcd", DEFAULT_LESSON_MENU_CODE);
+    formUrl.searchParams.set("crsCreCd", crsCreCd);
+    const formRes = await this.http.get<string>(formUrl.pathname + formUrl.search, {
+      headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+      responseType: "text",
+      timeout: 30000
+    });
+    const html = String(formRes.data || "");
+    let prgrRatioTypeCd =
+      hiddenInput(html, "prgrRatioTypeCd") ||
+      hiddenInput(html, "progressTypeCd") ||
+      jsAssign(html, "prgrRatioTypeCd") ||
+      jsAssign(html, "progressTypeCd");
+    if (!prgrRatioTypeCd) prgrRatioTypeCd = await this.resolveLessonProgressType({ crsCreCd });
+    const fields = {
+      stdNo: hiddenInput(html, "stdNo") || jsAssign(html, "stdNo"),
+      prgrRatioTypeCd,
+      referer: formUrl.toString()
+    };
+    this.lessonFormCache.set(crsCreCd, fields);
+    return fields;
   }
 
   /**
@@ -1352,9 +1398,13 @@ export class EcampusClient {
    * e-campus 첨부 URL을 받아 버퍼로 돌려준다.
    * HTML 오류 페이지가 오면 실패로 본다.
    * @param {string} url - 첨부 절대·상대 URL
+   * @param {(loaded: number, total: number) => void} [onProgress] - 받은 바이트
    * @returns {Promise<EcampusDownloadedFile>} 파일 본문과 헤더
    */
-  async downloadClassroomFile(url: string): Promise<EcampusDownloadedFile> {
+  async downloadClassroomFile(
+    url: string,
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<EcampusDownloadedFile> {
     await this.ensureAuthenticated();
     const abs = new URL(url, this.baseUrl);
     if (!abs.hostname.endsWith("seowon.ac.kr")) {
@@ -1369,7 +1419,10 @@ export class EcampusClient {
       },
       maxContentLength: 50 * 1024 * 1024,
       timeout: 120000,
-      validateStatus: () => true
+      validateStatus: () => true,
+      onDownloadProgress: (ev) => {
+        onProgress?.(ev.loaded, ev.total || 0);
+      }
     });
     const data = Buffer.from(response.data as ArrayBuffer);
     const contentType = String(response.headers["content-type"] || "application/octet-stream");
@@ -1377,6 +1430,7 @@ export class EcampusClient {
     if (response.status >= 400 || isHtmlFileBody(data, contentType)) {
       throw new Error("첨부 파일을 받지 못했습니다. e-campus 에서 다시 받아 보세요.");
     }
+    onProgress?.(data.length, data.length);
     return { data, contentType, disposition };
   }
 

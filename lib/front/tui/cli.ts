@@ -167,7 +167,7 @@ function loadTheme() {
 
 loadTheme();
 
-const { expandSelect, tableSelect, confirmButtons, directoryTree, trace, bindApi, question, promptField, waitEnter, clearScreen } = makeKit(theme);
+const { expandSelect, tableSelect, confirmButtons, directoryTree, withDownloadBar, trace, bindApi, question, promptField, waitEnter, clearScreen } = makeKit(theme);
 function doClear() {
   if (theme.clearOnNav === false) return;
   clearScreen();
@@ -455,7 +455,7 @@ async function choose(ctx, message, pairs) {
   );
 }
 
-const actions = makeActions({ ROOT, c, A, choose, pickFromList, confirm, ask, pickFile, spin, failLine, box, clearScreen: doClear, waitEnter, theme });
+const actions = makeActions({ ROOT, c, A, choose, pickFromList, confirm, ask, pickFile, spin, withDownloadBar, failLine, box, clearScreen: doClear, waitEnter, theme });
 
 function resolveMenu(answer) {
   const a = String(answer || "").trim();
@@ -1481,7 +1481,18 @@ async function runReadSweep(ctx) {
 
   if (opt.write && timetable.ok) {
     const dest = await actions.chooseSavePath(ctx, "survey-timetable.png");
-    if (dest) log("saveTimetableFile", await api.saveTimetableFile({ savePath: dest, timeoutMs: 30000 }));
+    if (dest) {
+      log(
+        "saveTimetableFile",
+        await withDownloadBar(path.basename(dest), (report) =>
+          api.saveTimetableFile({
+            savePath: dest,
+            timeoutMs: 30000,
+            onProgress: (loaded, total) => report(loaded, total)
+          })
+        )
+      );
+    }
     else skip("saveTimetableFile", "저장 위치를 고르지 않았습니다");
   } else skip("saveTimetableFile", opt.write ? "시간표가 없습니다" : "--write 일 때만 저장합니다");
 
@@ -1490,7 +1501,14 @@ async function runReadSweep(ctx) {
     if (dest) {
       log(
         "downloadCampusFile",
-        await api.downloadCampusFile({ url: firstFile.url, savePath: dest, timeoutMs: 180000 })
+        await withDownloadBar(path.basename(dest), (report) =>
+          api.downloadCampusFile({
+            url: firstFile.url,
+            savePath: dest,
+            timeoutMs: 180000,
+            onProgress: (loaded, total) => report(loaded, total)
+          })
+        )
       );
     } else skip("downloadCampusFile", "저장 위치를 고르지 않았습니다");
   } else skip("downloadCampusFile", opt.write ? "받을 첨부가 없습니다" : "--write 일 때만 저장합니다");
@@ -1500,12 +1518,15 @@ async function runReadSweep(ctx) {
     if (dest) {
       log(
         "downloadLessonVideo",
-        await api.downloadLessonVideo({
-          crsCreCd: lesson.crsCreCd,
-          lessonCntsId: lesson.lessonCntsId,
-          savePath: dest,
-          timeoutMs: 600000
-        })
+        await withDownloadBar(path.basename(dest), (report) =>
+          api.downloadLessonVideo({
+            crsCreCd: lesson.crsCreCd,
+            lessonCntsId: lesson.lessonCntsId,
+            savePath: dest,
+            timeoutMs: 600000,
+            onProgress: (loaded, total) => report(loaded, total)
+          })
+        )
       );
     } else skip("downloadLessonVideo", "저장 위치를 고르지 않았습니다");
   } else skip("downloadLessonVideo", "--write --heavy 일 때만 영상을 받습니다");

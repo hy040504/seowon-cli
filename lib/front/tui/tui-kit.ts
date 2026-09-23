@@ -406,7 +406,6 @@ export function makeKit(theme) {
   const { TTY, c, A } = theme;
   const acc = () => theme.accent || A.blue;
   const pillBg = () => theme.pill ?? 33;
-  const treeBg = () => theme.treeBg ?? 24;
 
   function stamp() {
     const d = new Date();
@@ -481,7 +480,7 @@ export function makeKit(theme) {
     },
     fetchProgress: {
       service: ["services/ecampus/elearning.ts"],
-      engine: ["engine/utils.ts"]
+      engine: ["engine/ecampus/login.ts", "engine/utils.ts"]
     },
     downloadLessonVideo: {
       service: ["services/ecampus/elearning.ts"],
@@ -719,8 +718,7 @@ export function makeKit(theme) {
         if (dw(bodyRaw) > maxW) state.needMarquee = true;
         const body = dw(bodyRaw) > maxW ? marquee(bodyRaw, maxW, on ? marqueeOff : 0) : bodyRaw;
         state.hits.push({ line: lines.length, index: liveAt });
-        if (on) lines.push(`${c("❯", acc(), A.bold)} ${rowBar(body)}`);
-        else lines.push(`  ${c(body, A.white)}`);
+        lines.push(on ? `${c("❯", acc(), A.bold)} ${markSelected(body)}` : `  ${c(body, A.white)}`);
       });
       paint(lines, state);
     };
@@ -851,9 +849,9 @@ export function makeKit(theme) {
             return typeof col.paint === "function" ? col.paint(shown, row) : shown;
           }).join("  ");
           const num = String(abs + 1).padStart(2);
+          const listText = `${c(num, A.gray)}  ${cells}`;
           state.hits.push({ line: lines.length, index: abs });
-          if (on) lines.push(`${c("❯", acc(), A.bold)} ${rowBar(`${num}  ${cells}`)}`);
-          else lines.push(`  ${c(num, A.gray)}  ${cells}`);
+          lines.push(on ? `${c("❯", acc(), A.bold)} ${markSelected(listText)}` : `  ${listText}`);
         });
       }
       if (list.length > pageSize) {
@@ -950,17 +948,17 @@ export function makeKit(theme) {
     return `\x1b[48;5;${n}m`;
   }
 
+  /** 목록에 이미 입힌 색 코드를 걷어 선택 색만 다시 칠할 수 있게 한다. */
+  function stripAnsi(text) {
+    return String(text ?? "").replace(/\x1b\[[0-9;]*m/g, "");
+  }
+
   /**
-   * 선택 줄 배경. 글자색(등급·미제출 빨강)은 유지하고, 칸이 짧으면 화면 끝까지 채운다.
-   * 줄바꿈으로 다시 그리기가 어긋나지 않게 터미널 너비 안쪽에서 멈춘다.
+   * 선택 효과. 목록 문자열과는 따로, 그 글자만 테마 색으로 바꾼다.
+   * 배경을 깔거나 줄 끝까지 채우지 않는다.
    */
-  function rowBar(text) {
-    const limit = Math.max(16, (output.columns || 80) - 4);
-    const width = dw(text) >= limit ? dw(text) : limit;
-    const bg = bg256(treeBg());
-    const padded = pad(String(text ?? ""), width);
-    const kept = `${bg}\x1b[97m${padded.split(A.reset).join(`${A.reset}${bg}\x1b[97m`)}`;
-    return `${kept}${A.reset}`;
+  function markSelected(text) {
+    return `${acc()}${A.bold}${stripAnsi(text)}${A.reset}`;
   }
 
   function pill(label, on) {
@@ -1183,10 +1181,10 @@ export function makeKit(theme) {
         const pref = treePrefix(row.depth, row.isLast, row.continues);
         const raw = `${pref}${glyph}${row.node.name}`;
         if (dw(raw) > nameW) state.needMarquee = true;
-        const body = dw(raw) > nameW ? marquee(raw, nameW, on ? marqueeOff : 0) : pad(raw, nameW);
+        const body = dw(raw) > nameW ? marquee(raw, nameW, on ? marqueeOff : 0) : raw;
         state.hits.push({ line: lines.length, index: abs, file: !row.node.isDir, dir: row.node.isDir, up: Boolean(row.node.isUp) });
         if (on) {
-          lines.push(`${c("❯", acc(), A.bold)} ${rowBar(body)}`);
+          lines.push(`${c("❯", acc(), A.bold)} ${markSelected(body)}`);
         } else if (row.node.isDir) {
           lines.push(`  ${c(pref, A.dim)}${c(glyph, acc())}${c(row.node.name, A.white)}`);
         } else {
@@ -1361,11 +1359,143 @@ export function makeKit(theme) {
     }
   }
 
+  function formatBytes(n) {
+    const v = Number(n) || 0;
+    if (v < 1024) return `${v} B`;
+    if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
+    if (v < 1024 * 1024 * 1024) return `${(v / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(v / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+
+  function blend256(t) {
+    const stops = theme.blend || [27, 33, 39, 45, 81, 177, 213];
+    const x = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+    return stops[Math.min(stops.length - 1, Math.round(x))];
+  }
+
+  /** 받은 비율만큼 채우는 색 막대. 빈 칸은 회색이다. */
+  function progressBarView(percent, width) {
+    const p = Math.max(0, Math.min(1, percent));
+    const tw = Math.max(8, width);
+    const fw = Math.round(tw * p);
+    let bar = "";
+    for (let i = 0; i < tw; i++) {
+      const col = blend256(i / Math.max(tw - 1, 1));
+      bar += i < fw ? `\x1b[38;5;${col}m█` : "\x1b[38;5;240m░";
+    }
+    return `${bar}${A.reset}`;
+  }
+
+  /**
+   * 다운로드 진행 막대. 한 줄만 다시 그린다.
+   * 끝나면 100%까지 채운 뒤 그 줄을 지워서 막대 글자가 남지 않게 한다.
+   * work 에는 (받은 바이트, 전체 바이트) 를 알리는 함수를 넘긴다.
+   */
+  async function withDownloadBar(label, work) {
+    if (!TTY) return work(() => {});
+    let received = 0;
+    let total = 0;
+    let shown = 0;
+    let ticking = true;
+    const origWrite = output.write.bind(output);
+
+    const renderLine = () => {
+      const limit = Math.max(20, (output.columns || 80) - 1);
+      let barW = 24;
+      let nameW = 24;
+      let line = "";
+      const p = Math.max(0, Math.min(1, shown));
+      const pctTxt = total > 0 ? `${String(Math.round(p * 100)).padStart(3)}%` : " · ·";
+      const size = total > 0
+        ? `${formatBytes(received)} / ${formatBytes(total)}`
+        : received ? formatBytes(received) : "받는 중";
+      do {
+        const name = trunc(String(label || "다운로드"), nameW);
+        line = `  ${c("⬇", acc(), A.bold)} ${c(name, A.bold)} ${progressBarView(p, barW)} ${c(pctTxt, A.bold)} ${c(size, A.dim)}`;
+        if (dw(line) <= limit || (barW <= 8 && nameW <= 4)) break;
+        if (barW > 8) barW -= 2;
+        else nameW -= 2;
+      } while (barW >= 8);
+      return line;
+    };
+
+    const draw = () => {
+      if (!ticking) return;
+      origWrite(`\r\x1b[2K${renderLine()}`);
+    };
+
+    const clearLine = () => {
+      origWrite("\r\x1b[2K");
+    };
+
+    output.write = function (chunk, encoding, cb) {
+      if (!ticking) return origWrite(chunk, encoding, cb);
+      clearLine();
+      const text = typeof chunk === "string" ? chunk : Buffer.isBuffer(chunk) ? chunk.toString("utf8") : "";
+      const ret = origWrite(chunk, encoding, cb);
+      if (text && !text.endsWith("\n")) origWrite("\n");
+      return ret;
+    };
+
+    const report = (got, tot) => {
+      received = Math.max(0, Number(got) || 0);
+      total = Math.max(0, Number(tot) || 0);
+      if (total > 0 && received > total) received = total;
+    };
+
+    const stop = () => {
+      ticking = false;
+      clearInterval(iv);
+      output.write = origWrite;
+    };
+
+    origWrite(`${ESC}[?25l`);
+    const iv = setInterval(() => {
+      if (!ticking) return;
+      const target = total > 0 ? Math.min(1, received / Math.max(total, 1)) : Math.min(0.9, shown + 0.02);
+      shown += (target - shown) * 0.35;
+      if (shown < 0) shown = 0;
+      draw();
+    }, 32);
+    draw();
+
+    const finishVisual = async (fill) => {
+      stop();
+      if (fill) {
+        if (total <= 0) total = Math.max(received, 1);
+        if (received < total) received = total;
+        const until = Date.now() + 480;
+        while (shown < 0.999 && Date.now() < until) {
+          shown += (1 - shown) * 0.45;
+          if (shown > 1) shown = 1;
+          origWrite(`\r\x1b[2K${renderLine()}`);
+          await new Promise((r) => setTimeout(r, 32));
+        }
+        shown = 1;
+        origWrite(`\r\x1b[2K${renderLine()}`);
+        await new Promise((r) => setTimeout(r, 90));
+      }
+      clearLine();
+      origWrite(`${ESC}[?25h`);
+    };
+
+    try {
+      const result = await work(report);
+      const failed = Boolean(result && result.ok === false);
+      await finishVisual(!failed);
+      return result;
+    } catch (err) {
+      await finishVisual(false);
+      throw err;
+    }
+  }
+
   return {
     expandSelect,
     tableSelect,
     confirmButtons,
     directoryTree,
+    withDownloadBar,
     trace,
     bindApi,
     pad,

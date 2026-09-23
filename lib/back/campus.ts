@@ -4,6 +4,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import {
   attachSubmittedFilesToRows,
@@ -329,14 +330,19 @@ export class Campus {
     }, input.timeoutMs);
   }
 
-  async downloadCampusFile(input: { url: string; savePath?: string } & Timed): Promise<CallResult<{ saved?: string; bytes: number }>> {
+  async downloadCampusFile(input: {
+    url: string;
+    savePath?: string;
+    onProgress?: (loaded: number, total: number) => void;
+  } & Timed): Promise<CallResult<{ saved?: string; bytes: number }>> {
     return this.run(async () => {
       const sess = this.requireSession();
       if (!input.url) throw new Error("받을 파일이 없습니다.");
-      const file = await downloadCampusFileBytes(this.client(sess), input.url);
+      const file = await downloadCampusFileBytes(this.client(sess), input.url, input.onProgress);
       if (!input.savePath) return { bytes: file.data.length };
       fs.mkdirSync(path.dirname(input.savePath), { recursive: true });
       fs.writeFileSync(input.savePath, file.data);
+      input.onProgress?.(file.data.length, file.data.length);
       return { saved: input.savePath, bytes: file.data.length };
     }, input.timeoutMs);
   }
@@ -378,20 +384,32 @@ export class Campus {
     crsCreCd: string;
     lessonCntsId: string;
     savePath: string;
+    onProgress?: (loaded: number, total: number) => void;
   } & Timed): Promise<CallResult<{ saved: string; bytes: number }>> {
     return this.run(async () => {
       const sess = this.requireSession();
       if (!input.crsCreCd || !input.lessonCntsId) throw new Error("차시 정보가 부족합니다.");
       if (!input.savePath) throw new Error("저장 경로가 없습니다.");
       const video = await openLessonVideo(this.client(sess), input.crsCreCd, input.lessonCntsId);
+      const total = Number(video.contentLength) || 0;
+      let loaded = 0;
+      const counter = new Transform({
+        transform(chunk, _enc, cb) {
+          const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          loaded += buf.length;
+          input.onProgress?.(loaded, total);
+          cb(null, buf);
+        }
+      });
       fs.mkdirSync(path.dirname(input.savePath), { recursive: true });
       try {
-        await pipeline(video.stream, fs.createWriteStream(input.savePath));
+        await pipeline(video.stream, counter, fs.createWriteStream(input.savePath));
       } catch (err) {
         video.stream.destroy();
         throw err;
       }
-      return { saved: input.savePath, bytes: fs.statSync(input.savePath).size };
+      input.onProgress?.(loaded, total || loaded);
+      return { saved: input.savePath, bytes: loaded || fs.statSync(input.savePath).size };
     }, input.timeoutMs);
   }
 
@@ -404,7 +422,10 @@ export class Campus {
     }, input.timeoutMs);
   }
 
-  async saveTimetableFile(input: { savePath: string } & Timed): Promise<CallResult<{ saved: string; bytes: number }>> {
+  async saveTimetableFile(input: {
+    savePath: string;
+    onProgress?: (loaded: number, total: number) => void;
+  } & Timed): Promise<CallResult<{ saved: string; bytes: number }>> {
     return this.run(async () => {
       const sess = this.requireSession();
       if (!input.savePath) throw new Error("저장 경로가 없습니다.");
@@ -412,6 +433,7 @@ export class Campus {
       const png = renderTimetablePng(sess.timetable?.svg || "");
       fs.mkdirSync(path.dirname(input.savePath), { recursive: true });
       fs.writeFileSync(input.savePath, png);
+      input.onProgress?.(png.length, png.length);
       return { saved: input.savePath, bytes: png.length };
     }, input.timeoutMs);
   }

@@ -15,7 +15,7 @@ function safeName(name) {
 }
 
 export function makeActions(deps) {
-  const { ROOT, c, A, choose, pickFromList, confirm, ask, pickFile, spin, failLine, box, clearScreen, waitEnter, theme } = deps;
+  const { ROOT, c, A, choose, pickFromList, confirm, ask, pickFile, spin, withDownloadBar, failLine, box, clearScreen, waitEnter, theme } = deps;
   let lastDir = path.join(ROOT, "downloads");
 
   /** 저장 폴더를 고른다. 직전 폴더에서 이어서 연다. */
@@ -49,12 +49,13 @@ export function makeActions(deps) {
     }
     const dest = await chooseSavePath(ctx, file.title || "file");
     if (!dest) return;
-    const r = await spin(file.title || "file", () =>
+    const r = await withDownloadBar(path.basename(dest), (report) =>
       ctx.api.downloadCampusFile({
         url: file.url,
         savePath: dest,
         timeoutMs: 180000,
-        ...extra
+        ...extra,
+        onProgress: (loaded, total) => report(loaded, total)
       })
     );
     if (!r.ok) return console.log(c(`  ${failLine(r)}`, A.red));
@@ -80,12 +81,13 @@ export function makeActions(deps) {
     const name = title.endsWith(".mp4") ? title : `${title}.mp4`;
     const dest = await chooseSavePath(ctx, name);
     if (!dest) return;
-    const r = await spin(path.basename(dest), () =>
+    const r = await withDownloadBar(path.basename(dest), (report) =>
       ctx.api.downloadLessonVideo({
         crsCreCd: row.crsCreCd,
         lessonCntsId: row.lessonCntsId,
         savePath: dest,
-        timeoutMs: 600000
+        timeoutMs: 600000,
+        onProgress: (loaded, total) => report(loaded, total)
       })
     );
     if (!r.ok) return console.log(c(`  ${failLine(r)}`, A.red));
@@ -230,8 +232,12 @@ export function makeActions(deps) {
   async function saveTimetable(ctx) {
     const dest = await chooseSavePath(ctx, "timetable.png");
     if (!dest) return;
-    const r = await spin("시간표.png", () =>
-      ctx.api.saveTimetableFile({ savePath: dest, timeoutMs: 30000 })
+    const r = await withDownloadBar(path.basename(dest), (report) =>
+      ctx.api.saveTimetableFile({
+        savePath: dest,
+        timeoutMs: 30000,
+        onProgress: (loaded, total) => report(loaded, total)
+      })
     );
     if (!r.ok) return console.log(c(`  ${failLine(r)}`, A.red));
     console.log(c(`  저장 ${r.saved || dest}`, A.green));

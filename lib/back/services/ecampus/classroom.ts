@@ -401,9 +401,10 @@ export async function fetchMaterialAttachments(
  */
 export async function downloadCampusFile(
   client: EcampusClient,
-  url: string
+  url: string,
+  onProgress?: (loaded: number, total: number) => void
 ): Promise<{ data: Buffer; contentType: string; disposition: string }> {
-  return client.downloadClassroomFile(url);
+  return client.downloadClassroomFile(url, onProgress);
 }
 
 /**
