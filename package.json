@@ -1,0 +1,22 @@
+{
+  "name": "seowon-cli",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "서원대학교 학생 웹과 같은 메뉴를 학교 서버에 직접 조회하는 TypeScript TUI CLI",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc && node scripts/copy-legacy.mjs",
+    "start": "node dist/front/tui/cli.js",
+    "dev": "tsx lib/front/tui/cli.ts",
+    "api-cli": "tsx lib/front/tui/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "axios-cookiejar-support": "^7.0.0",
+    "cheerio": "^1.2.0",
+    "tough-cookie": "^6.0.1"
+  },
+  "devDependencies": { "@types/node": "^22.17.0", "tsx": "^4.20.0", "typescript": "^5.9.0" }
+}

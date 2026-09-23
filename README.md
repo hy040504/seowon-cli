@@ -1,448 +1,241 @@
-# seowon-cli
+# 🎓 서원대 모아보기 · CLI
 
-<p align="center">
-  <strong>서원대학교 e-campus 과제 · 이러닝을 터미널과 창에서 조회하는 Python 클라이언트</strong>
-</p>
+서원대학교 e-campus, 확정 수강 시간표, 통합정보시스템 ERP를 **한 대의 터미널**에서 보는 비공식 학생 CLI입니다.  
+학교 연동은 `lib/back` 에 있고, 화면은 `lib/front/tui` 입니다. 웹 서버를 띄우지 않습니다. 이 프로세스가 학교 서버에 직접 접속합니다.
 
-<p align="center">
-  로그인 한 번으로 <b>지금 할 과제</b>·<b>공지</b>·<b>자료</b>·<b>이러닝</b>·<b>시간표</b>를 한곳에 모읍니다.
-</p>
+현재 버전은 `v1.0.0` 입니다.
 
-<p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
-  <img alt="PyQt6" src="https://img.shields.io/badge/GUI-PyQt6-41CD52?logo=qt&logoColor=white">
-  <img alt="Windows" src="https://img.shields.io/badge/Windows-10+-0078D6?logo=windows&logoColor=white">
-  <img alt="Storage" src="https://img.shields.io/badge/storage-JSON_only-F7DF1E">
-  <img alt="Query" src="https://img.shields.io/badge/mode-조회_+_과제_제출-3182F6">
-  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
-</p>
+> 서원대학교 공식 SDK가 아닙니다. 계정·세션·다운로드 파일은 공개 저장소에 올리지 마세요.
 
-<p align="center">
-  <a href="https://github.com/hy040504/seowon-cli">hy040504/seowon-cli</a>
-  ·
-  <a href="https://github.com/hy040504/seowon-client-web">웹</a>
-  ·
-  <a href="https://github.com/hy040504/seowon-client-api">API</a>
-</p>
+---
 
-공식 SDK가 아닙니다. 수업용 도구입니다.  
-수강신청·이러닝 자동 시청·출석 처리는 넣지 않습니다. GUI에서 과제를 글·파일로 제출할 수 있습니다.
+## 🧠 현재 구성
 
-브라우저로 여러 학생이 쓰려면 [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 켭니다.  
-이 저장소 GUI는 로그인·할 일·과제·공지·자료·이러닝·시간표·현황 메뉴를 **스마트홈 태블릿**처럼 파랑·핑크 타일과 흰 선 아이콘으로 보여 줍니다.
+호스트와 쿠키는 서비스마다 다릅니다. 하나를 다른 자리에 넣지 않습니다.
+
+| 구성 요소 | 위치 | 담당 역할 |
+| :--- | :--- | :--- |
+| e-campus LMS | `ecampus.seowon.ac.kr` · `EcampusClient` | 로그인, 과제·공지·자료·이러닝, 이번 학기 성적 |
+| 확정 수강 시간표 | `sugangh.seowon.ac.kr` · `CourseRegistrationClient` | 확정 수강 목록으로 시간표 |
+| 통합정보 ERP | `info.seowon.ac.kr` · `ErpClient` | 지난 학기 성적. 이번 학기 LMS 성적과 다름 |
+| 조회 묶음 | `lib/back/campus.ts` | 로그인 세션 하나에서 메뉴가 부르는 함수 |
+| 터미널 화면 | `lib/front/tui` | 메뉴, 표, 저장 폴더 선택 |
+
+> **ERP ≠ e-campus 성적.** 지난 학기는 `info.seowon.ac.kr`, 이번 학기 강의실 성적은 `ecampus.seowon.ac.kr` 입니다.
+
+---
+
+## 🔁 요청이 지나가는 구조
 
 ```text
-============================================
-  서원대 e-campus 몰아보기   v1.1.0
-  조회 · Python · JSON 저장
-============================================
-[100.0%] Loading... *
+터미널
+  학번 · 비밀번호
+        │
+        ▼
+  lib/front/tui/cli.ts
+        │
+        ▼
+  lib/back/campus.ts          메모리 세션 하나
+        ├─ client.cookieJar      ecampus
+        ├─ courseReg.cookieJar   시간표
+        └─ erp.cookieJar         지난 성적
+```
 
-  메인 메뉴
-  [로그인됨: 홍길동 (20241234) · 컴퓨터공학과]
-  1. 로그인 / 세션
-  2. 과제 확인
-  3. 공지 확인
-  4. 강의실 자료
-  5. 이러닝 확인
-  6. 시간표
-  7. 현황 한 표 요약
-  8. 파일 / 설정
-  0. 종료
+학번·비밀번호·학교 쿠키는 디스크에 쓰지 않습니다. 프로세스를 끝내면 그 세션은 사라집니다. 테마 색만 `data/tui-config.json` 에 남습니다.
+
+추적 로그는 `fetchSnapshot({...})` 처럼 **부른 함수 이름**입니다. HTTP 경로를 메뉴 로그로 찍지 않습니다.
+
+---
+
+## ✨ 핵심 기능
+
+| 기능 | 설명 |
+| :--- | :--- |
+| 🔑 로그인 | 학번·비밀번호. 성공하면 메뉴를 연다 |
+| 🔥 지금 할 것 | 지금 제출 기간의 미제출 과제와, 지금 학습 기간의 미학습 차시 |
+| 📝 과제 | 전체 · 지금 할 수 있는 과제 · 미제출 · 제출한 과제. 제출과 파일 삭제 |
+| 📢 공지 · 📁 자료 | 과목별 본문과 첨부. 저장 위치를 고른 뒤 받는다 |
+| 💻 이러닝 | 전체 조회는 수강·다운로드. 학습률만 차시별 퍼센트. 시청 기록은 보내지 않음 |
+| 🗓️ 시간표 | 확정 수강 목록. SVG 또는 HTML을 고른 폴더에 저장 |
+| 📊 성적 | 이번 학기는 e-campus, 지난 학기는 ERP 등급·평점 |
+| 📌 전체 현황 | 기간과 관계없는 미제출 과제, 기간 안 미완료 차시. 0이 아니면 밝은 빨강 |
+| ⚙️ 설정 | 테마 색, 메뉴를 바꿀 때 화면 지우기, 캐시 비우기 |
+| 🧪 함수 전수 조사 | 조회 함수를 순서대로 실행. 과제 제출과 로그아웃은 건너뜀 |
+
+파일을 받을 때는 매번 폴더를 고릅니다. 그 폴더에서 `s` 를 누르면 저장하고, Esc 는 취소입니다.
+
+---
+
+## 🧭 로그인부터 조회까지
+
+```mermaid
+flowchart TD
+  login["1. 학번 · 비밀번호"] --> mem["2. 이 프로세스 메모리에만 학교 쿠키"]
+  mem --> menu["3. 메뉴를 고른다"]
+  menu --> lms["e-campus<br/>과제 · 공지 · 자료 · 이러닝 · 이번 성적"]
+  menu --> tt["시간표<br/>확정 수강 목록"]
+  menu --> erp["ERP<br/>지난 성적"]
+  lms --> stay["4. 같은 세션으로 다음 메뉴"]
+  tt --> stay
+  erp --> stay
+  stay --> close["5. 종료"]
+  close --> gone["메모리 세션 삭제"]
 ```
 
 ---
 
-## 목차
+## 🖥️ 터미널 화면
 
-- [이 저장소에 있는 것](#이-저장소에-있는-것)
-- [왜 쓰나](#왜-쓰나)
-- [빠른 시작](#빠른-시작)
-- [TUI 메뉴](#tui-메뉴)
-- [GUI](#gui)
-- [관련 저장소](#관련-저장소)
-- [구조](#구조)
-- [저장 파일](#저장-파일)
-- [요청 흐름](#요청-흐름)
-- [하지 않는 것](#하지-않는-것)
-- [변경 사항](#변경-사항)
-- [라이선스](#라이선스)
+키보드만 씁니다. 마우스로 메뉴를 고르지 않습니다.
 
----
+| 조작 | 동작 |
+| :--- | :--- |
+| 숫자 · 단축키 | 사이드바 이동 |
+| ↑↓ Enter | 목록에서 고르기 |
+| `/` | 목록 검색 |
+| Esc | 이전 화면. 메인에서 Esc 면 종료 |
+| `q` | 종료 |
+| 비밀번호 | 입력 중 `*` |
+| 저장 | 폴더를 고른 뒤 `s` |
 
-## 이 저장소에 있는 것
+이러닝 **전체 조회**와 **학습률**은 같은 차시 범위입니다. 전체 조회는 수강하기·영상 받기이고, 학습률만 퍼센트를 묻습니다. **들을 차시**만 지금 학습 기간의 미학습·학습중입니다.
 
-| | TUI | GUI |
-| --- | :---: | :---: |
-| 실행 | `python seowon_tui.py` | `python seowon_gui.py` |
-| 과제 · 이러닝 조회 | O | O |
-| 공지 · 강의실 자료 | O | O |
-| 수강 시간표 | O | O |
-| 지금 할 것 (기간 안 미제출 + 들을 차시) | `2→2` / `5→2` | 메뉴 한 화면 |
-| 현황 한 표 | O | O |
-| 오프라인 데모 | `--demo` | `--demo` / `GUI실행.bat --demo` |
-| 라이트 / 다크 | — | 설정 스위치 |
-| 과제 제출 (글·파일) | — | O |
-| 첨부 다운로드 | — | O |
-| 과목 필터 (과제·공지·자료) | — | O |
-
-TUI와 GUI는 **같은 Python 조회 엔진** (`lib/back`) 을 씁니다. 컴파일러나 실행 파일은 필요 없습니다.
+출결이 비어 있거나 이미 다 들은 경우에는 `차시 N건을 전부 수강하였습니다.`처럼 그 상황을 보여 줍니다. 수강하기는 브라우저의 e-campus 로그인으로 강의 창을 엽니다. 이 프로그램의 쿠키를 브라우저에 넣지 않습니다.
 
 ---
 
-## 왜 쓰나
+## 📁 파일 구조
 
-e-campus는 과목마다 강의실을 들어가야 과제·출결을 볼 수 있습니다.  
-이 프로그램은 로그인 한 번으로 전 과목을 모아 **지금 할 일**만 보여 줍니다.
+```text
+seowon-cli/
+├── lib/
+│   ├── back/                    학교 연동과 조회
+│   │   ├── campus.ts            세션 하나. 메뉴가 부르는 함수
+│   │   ├── filters.ts           기간 · 미제출 · 미학습 · 학습률 판별
+│   │   ├── engine/              로그인 · 쿠키 · 원본 프로토콜
+│   │   │   ├── ecampus/         과제 · 공지 · 자료 · 이러닝 · 이번 성적
+│   │   │   ├── erp/             지난 성적
+│   │   │   ├── course-registration/  확정 수강 · 시간표
+│   │   │   └── hope-basket/     시간표 그림에 쓰는 공통 처리
+│   │   ├── services/            화면이 쓰는 목록·제출·성적
+│   │   └── types/
+│   └── front/
+│       └── tui/                 터미널 메뉴
+│           ├── cli.ts           진입점
+│           ├── tui-kit.ts       표 · 색 · 폴더 선택
+│           └── tui-actions.ts   저장 · 제출 · 다운로드
+├── scripts/copy-legacy.mjs      빌드 때 로그인 암호화 파일 복사
+├── api-cli.bat
+└── package.json
+```
 
-| 보고 싶은 것 | TUI | GUI |
-| --- | --- | --- |
-| 기간 안 미제출 과제 | `2` → `2` | 지금 할 것 / 과제 필터 |
-| 미제출·진행중 전수 | `2` → `3` | 과제 → 미제출 · 진행중 |
-| 수강 공지 | `3` | 공지 |
-| 강의실 자료 | `4` | 자료 |
-| 들을 이러닝 차시 | `5` → `2` | 지금 할 것 / 이러닝 필터 |
-| 수강 시간표 | `6` | 시간표 |
-| 과목별 미제출 + 미완료 | `7` | 현황 |
-| 고른 차시 학습률(%) | `5` → `3` | 이러닝 행의 `%` |
+| 파일 | 담당 기능 |
+| :--- | :--- |
+| `lib/back/engine` | 학교와 직접 통신 |
+| `lib/back/services` | 스냅샷 · 제출 · 성적 · 시간표 |
+| `lib/back/campus.ts` | 메뉴가 부르는 함수. 웹 API가 아님 |
+| `lib/front/tui/cli.ts` | 학생 메뉴 |
+| `api-cli.bat` | Windows에서 설치 후 같은 메뉴 실행 |
 
-학습률은 차시 목록에 없습니다. **고른 차시만** 한 번 더 조회합니다. 시청 기록은 보내지 않습니다.
-
-학번·비밀번호를 `login.json` 에 둘 다 채워 두면 입력을 건너뜁니다. 하나라도 비어 있으면 직접 입력합니다.  
-`session.json` / `result.json` / `config.json` 에는 비밀번호를 넣지 않습니다.
+모듈은 ESM (`"type": "module"`) 입니다. 공개 함수는 한국어 JSDoc(`@param` / `@returns`)을 씁니다.
 
 ---
 
-## 빠른 시작
+## ⚙️ 주요 설정
 
-### 필요 환경
+| 환경 변수 | 기본 | 설명 |
+| :--- | :--- | :--- |
+| `SEOWON_SID` | 없음 | 자동 로그인 학번. `.env` 에만 둔다 |
+| `SEOWON_PW` | 없음 | 자동 로그인 비밀번호. `.env` 에만 둔다 |
 
-| 항목 | 내용 |
-| --- | --- |
-| OS | Windows 10+ (HTTPS 조회는 다른 OS 에서도 동작) |
-| Python | 3.10 이상 |
-| GUI | PyQt6 (`pip install -r requirements.txt`) |
-| 저장 | JSON만 (`config.json`, `login.json`, `session.json`, `result.json`) |
+`.env.example` 은 빈 칸만 있습니다. `.env`, `downloads/`, `data/`, `dist/` 는 저장소에 올리지 않습니다.
+
+| 옵션 | 설명 |
+| :--- | :--- |
+| `--sid` `--pw` | 그 실행만 자동 로그인 |
+| `--suite all` | 함수 전수 조사를 바로 실행 |
+| `--depth <n>` | 상세·첨부 조사 건수. 기본 3 |
+| `--heavy` | 상세를 전체 행까지. `--write` 와 함께 영상도 받음 |
+| `--write` | 시간표와 첨부 하나를 저장. 폴더를 직접 고름 |
+| `--timeout <ms>` | 함수 제한 시간. 기본 90000 |
+| `--verbose` | 조회 결과 일부 출력 |
+| `--list` | 조사하는 함수 이름 |
+| `--help` | 도움말 |
+
+---
+
+## ▶️ 실행 방법
+
+필요 환경은 Node.js 20 이상입니다. `seowon-client-web` 을 띄울 필요가 없습니다.
+
+### 1. Windows에서 바로 켜기
 
 ```bat
-pip install -r requirements.txt
-python seowon_tui.py --test
+api-cli.bat
 ```
+
+`node_modules` 가 없으면 `npm install` 한 뒤 메뉴를 엽니다.
 
 ```bat
-python seowon_tui.py              터미널 메뉴 (실제 e-campus)
-python seowon_tui.py --demo       testdata 로 오프라인 시연
-python seowon_tui.py --test       파서 · 필터 · 암호 단위 테스트
-python seowon_gui.py              PyQt 창 (없으면 PyQt6 설치 시도)
-python seowon_gui.py --demo       GUI 를 데모 체크로 시작
-GUI실행.bat                       더블클릭용 런처 (ASCII, cmd 한글 깨짐 방지)
-GUI실행.bat --demo                데모 체크를 켜고 창을 연다
-python lib\front\gui\main.py      GUI 직접 실행
-build.bat test                    위와 같은 단위 테스트
-build.bat gui --demo              GUI 데모
+api-cli.bat --help
+api-cli.bat --suite all --sid 학번 --pw 비밀번호
 ```
+
+### 2. npm
+
+```powershell
+npm install
+npm run api-cli
+```
+
+| 명령 | 하는 일 |
+| :--- | :--- |
+| `npm run api-cli` | `tsx` 로 `lib/front/tui/cli.ts` 실행 |
+| `npm run dev` | 같은 진입점 |
+| `npm run typecheck` | 타입만 검사 |
+| `npm run build` | `tsc` 후 로그인 암호화 파일을 `dist` 로 복사 |
+| `npm start` | `node dist/front/tui/cli.js` |
+
+대화형 메뉴는 TTY 가 필요합니다. 조사가 끝나면 프로세스가 종료됩니다.
 
 ---
 
-## TUI 메뉴
+## ⚠️ 주의사항
 
-계층 메뉴입니다. `z` / `0` 은 뒤로, `q` 는 종료입니다.  
-기능표 번호(`1.1.1` 같은 것)는 메뉴에 적지 않습니다.
-
-```text
-메인
-├─ 1  로그인 / 세션          login.json 또는 직접 입력, session.json 쿠키 재사용
-├─ 2  과제 확인
-│   ├─ 1  전체 과제
-│   ├─ 2  현재 수행 가능 (기간 안 + 미제출)
-│   ├─ 3  미제출 전수 조사
-│   └─ 4  과제 상세
-├─ 3  공지 확인
-│   ├─ 1  전체 공지
-│   └─ 2  공지 상세
-├─ 4  강의실 자료
-│   ├─ 1  전체 자료
-│   └─ 2  자료 상세
-├─ 5  이러닝 확인
-│   ├─ 1  차시 목록 · 출결
-│   ├─ 2  들을 차시
-│   └─ 3  학습률(%)
-├─ 6  시간표                 확정 수강 요일·교시 격자
-├─ 7  현황 한 표             과목별 미제출 / 미완료
-└─ 8  파일 / 설정
-    ├─ 1  config.json · login.json 상태
-    ├─ 2  result.json 저장
-    └─ 3  result.json 불러오기
-```
-
-시작 화면과 메뉴 전환에는 [SeowonProject](https://github.com/hy040504/SeowonProject) 의 `LoadSpin` 을 응용한 로딩 효과가 있습니다.
-
-비밀번호는 `*` 로 가리고, **마지막으로 친 글자만** 잠깐 보입니다.
-
-로그인에 성공하면 이름·학번·학과를 보여 줍니다. 예: `홍길동 (20241234) · 컴퓨터공학과`  
-e-campus 로그인 JSON에는 이름·학과가 없어서, 수강신청 SSO(`sugangh`)에서 한 번 더 가져옵니다.
+- 다른 학생 계정은 조회하지 않습니다. 세션은 이 프로세스 메모리 하나입니다.
+- `login.json`, 비밀번호 파일, 학교 쿠키 JSON 을 만들지 않습니다.
+- 이러닝 시청 기록(`watchLesson`)은 보내지 않습니다. 수강하기는 브라우저의 e-campus 로그인으로 엽니다.
+- 함수 전수 조사는 과제를 제출하지 않고, 조사 끝에 로그아웃하지 않습니다.
+- `--write` 와 메뉴의 저장은 고른 폴더에만 씁니다.
 
 ---
 
-## GUI
+## ✅ 구현 현황
 
-`lib/front/gui` 의 PyQt6 화면입니다.  
-메뉴 구성은 로그인·지금 할 것·과제·공지·자료·이러닝·시간표·현황·설정·정보이고, 겉모습은 스마트홈 태블릿처럼 **연한 라벤더 바탕, 흰 둥근 카드, 파랑/핑크 타일, 흰 선 아이콘**입니다.  
-공지·자료는 e-campus 게시판(`atclList` / `viewAtcl`)을, 시간표는 수강신청 확정 목록(`findAppcsDtlsList`)의 `timtbNm` 격자를 씁니다. 과제는 GUI에서 제출할 수 있고, 첨부는 저장 대화상자로 받습니다. 성적 조회는 넣지 않습니다.
-
-```text
-  (선 아이콘 레일)                 안녕하세요, 홍길동님!
-   집  홈                                          2026. 09. 12
-   목록 지금 할 것                 미제출 1 · 미완료 1 · 과목 1
-   문서 과제                       [할 일] [과제] [공지]
-   종  공지                        [자료] [이러닝] [시간표]
-   폴더 자료                       (원) 조회          Shortcuts
-   모니터 이러닝                                      현황 / 설정 / 정보
-   달력 시간표                                        Profile
-   막대 현황                       이름 · 학번 · 대학 · 학과
-   톱니 설정
-   i   정보
-  [홍] 홍길동
-  Log out
-```
-
-| 화면 | 하는 일 |
-| --- | --- |
-| 로그인 | 학번·비밀번호, 데모, 저장 세션. 성공하면 홈으로 |
-| 홈 | 인사, 숫자 칸, 색 타일(할 일·과제·공지·자료·이러닝·시간표), 원형 조회, Shortcuts(현황·설정·정보) / Profile |
-| 지금 할 것 | 기간 안 미제출 과제 + 들을 이러닝을 과목별로 모음 |
-| 과제 | 과목·상태 필터 · 행을 누르면 아래에 본문·제출 칸 · 제출하기는 파일 선택 왼쪽 |
-| 공지 | 과목 필터 · 행을 누르면 아래에 본문·첨부 |
-| 자료 | 과목 필터 · 행을 누르면 아래에 본문·첨부 받기 |
-| 이러닝 | 출결 알약 · 들을 차시 · 학습률 `%` |
-| 시간표 | 확정 수강 격자 · SVG 저장. 신청·취소 없음 |
-| 현황 | 미제출 / 미완료 / 과목 숫자와 과목 카드 |
-| 설정 | 라이트·다크, `result.json` 저장·불러오기 |
-| 정보 | 안내와 관련 저장소 |
-
-- 왼쪽 레일은 **항상 펼침**. 아이콘 아래 짧은 글자가 보입니다. 접히지 않아서 메뉴 이름이 숨겨지지 않습니다.
-- 아이콘은 이모지가 아니라 `icons.py` 가 그리는 **흰 선 로고**입니다. 고른 메뉴는 파란 원 + 흰 선, 나머지는 라벤더 선.
-- 로그인 뒤에는 홈(`안녕하세요, 이름님!`)이 열립니다. 타일로 할 일·과제·공지·자료·이러닝·시간표에 가고, Shortcuts에는 홈에 타일이 없는 현황·설정·정보만 둡니다. 대학·학과는 왼쪽 레일이 아니라 Profile 칸에 둡니다.
-- 목록 디자인은 [웹 클라이언트](https://user.seowon.dpdns.org/) 와 같이 **고른 행 아래를 펼칩니다**. 과제 펼침 칸 맨 아래는 `제출하기 | 파일 선택 | 파일 지우기` 순입니다.
-- 과제·공지·자료 도구 막대에 **과목 필터**가 있습니다. 과목을 바꾸면 다시 조회하지 않고 화면만 걸러 냅니다.
-- 화면 전환은 이전 화면이 스르르 사라지고, 목록은 위에서부터 나타납니다. 타일 호버, 조회 원, 토스트·로딩 막도 짧게 페이드합니다.
-- 로그인·조회·상세 열기는 메뉴마다 **같은 로딩 막**을 씁니다.
-- 과제·이러닝·공지·자료·지금 할 것은 **표 대신 카드**. 상태는 알약, 오류는 위쪽 토스트.
-- 로그인·조회 중에는 스피너(`loading_e1.png`) + 알약 메시지.
-- 로그인 칸은 `login.json` 을 미리 채웁니다. 학번·비밀번호가 둘 다 있으면 입력 없이 로그인합니다.
-- 데모 모드 칸은 파란 네모 안 V자 체크입니다.
-- PyQt6 가 없으면 `seowon_gui.py` 가 pip 설치를 시도합니다. 실패하면 `seowon-gui.log` 와 알림창에 남깁니다.
-- Windows에서 더블클릭할 때는 `GUI실행.bat` 을 씁니다. 배치 파일은 ASCII만 써서 cmd 한글 깨짐을 피합니다.
-- 조회는 같은 프로세스의 `lib.back.App` 을 백그라운드 스레드에서 호출합니다. 별도 실행 파일은 띄우지 않습니다.
+- ✅ 학교 서버 직접 접속. 웹 API 서버 없음
+- ✅ e-campus 과제·공지·자료·이러닝·이번 학기 성적
+- ✅ 미제출 과제는 기간이 닫혀 있어도 제출 파일이 없으면 미제출
+- ✅ 확정 수강 시간표 SVG·HTML
+- ✅ ERP 지난 성적 등급·평점
+- ✅ 과제 제출과 제출 파일 삭제
+- ✅ 저장할 때마다 폴더 선택
+- ✅ 테마 색
+- ✅ 조회 함수 전수 조사
 
 ---
+
+## 🧾 문서
+
+- [엔진 폴더](./lib/back/engine/README.md)
 
 ## 관련 저장소
 
 | 저장소 | 역할 |
-| --- | --- |
-| [seowon-cli](https://github.com/hy040504/seowon-cli) | 이 저장소. Python TUI·GUI. 조회 + GUI 과제 제출 |
-| [seowon-client-web](https://github.com/hy040504/seowon-client-web) | 브라우저 웹. 여러 학생, 제출·받기·시간표·성적 |
-| [seowon-client-api](https://github.com/hy040504/seowon-client-api) | TypeScript 조회 엔진. 웹이 사용 |
+| :--- | :--- |
+| [seowon-cli](https://github.com/hy040504/seowon-cli) | 이 저장소. 한 대에서 조회·제출 |
+| [seowon-client-web](https://github.com/hy040504/seowon-client-web) | 여러 학생이 브라우저로 보는 웹 |
+| [seowon-client-api](https://github.com/hy040504/seowon-client-api) | 학교 연동 원본. 이 CLI 실행에는 필요 없음 |
 
 ---
 
-## 구조
-
-저장소 루트가 작업 폴더입니다. `lib/front` · `lib/back` 배치는 [SeowonProject](https://github.com/hy040504/SeowonProject/tree/master/project) 를 따릅니다.  
-주석은 한국어입니다. 짧은 함수는 **Google 스타일** (`Args` / `Returns`), 로그인·파서·제출·시간표처럼 역할이 큰 함수는 **NumPy 스타일** (`Parameters` / `Returns`) 입니다. 인자·반환 값은 타입 힌트로 적어 두었습니다.
-
-```text
-seowon-cli
-├─ seowon_tui.py          TUI 진입점
-├─ seowon_gui.py          GUI 진입점 (PyQt6 없으면 설치 시도)
-├─ GUI실행.bat            Windows 더블클릭 런처
-├─ build.bat              TUI / GUI / 테스트 실행 도우미
-├─ lib
-│  ├─ seowon.py           상수 · 자료 구조
-│  ├─ util.py             문자열 · 기간 · 콘솔
-│  ├─ test_runner.py      단위 테스트
-│  ├─ front
-│  │  ├─ tui              터미널 UI
-│  │  │  ├─ ui.py
-│  │  │  └─ prompt.py
-│  │  └─ gui              PyQt 화면 (태블릿 톤)
-│  │     ├─ main.py
-│  │     ├─ window.py
-│  │     ├─ style.py
-│  │     ├─ widgets.py
-│  │     ├─ icons.py      흰 선 메뉴 아이콘
-│  │     ├─ backend.py
-│  │     └─ assets/       loading_e1.png, seowon-logo.svg
-│  └─ back                조회 · 파일 · 패킷
-│     ├─ http / crypto / parse / fs
-│     ├─ data_manager
-│     ├─ timetable        timtbNm 격자 · SVG
-│     └─ ssv / sugang     이름·학과 · 확정 수강 (신청·취소 없음)
-├─ db/testdata            데모·테스트용 HTML/JSON (세션 파일 아님)
-├─ login.json.example     학번·비밀번호 빈 칸 예제
-├─ requirements.txt       PyQt6
-└─ README.md
-```
-
-```mermaid
-flowchart LR
-  TUI["prompt.py"] --> DM[data_manager.py]
-  GUI["window.py"] --> DM
-  DM --> C[crypto.py]
-  DM --> H[http.py]
-  H --> EC[e-campus]
-  H --> SG[sugangh SSV]
-  H --> P[parse.py]
-  P --> DM
-  DM --> FS[fs.py JSON]
-```
-
----
-
-## 저장 파일
-
-`config.json` · `login.json` 은 실행 폴더, 세션·결과는 `dataDir`(기본 `./db`) 아래입니다.  
-`./db` 가 없으면 실행할 때 만듭니다.  
-저장소에는 **`db/testdata`만** 올립니다. `session.json` / `result.json` / `config.json` / `login.json` 은 `.gitignore` 입니다.
-
-예제: [`config.json.example`](config.json.example), [`login.json.example`](login.json.example)
-
-```json
-{
-  "lastStudentId": "20241234",
-  "saveSession": true,
-  "saveResult": true,
-  "dataDir": "./db"
-}
-```
-
-| 파일 | 내용 |
-| --- | --- |
-| `config.json` | 마지막 학번, 저장 옵션, 폴더 |
-| `login.json` | 학번·비밀번호. 둘 다 있으면 로그인 입력 생략. **로컬 평문, git 제외** |
-| `db/session.json` | 학번, 이름, 학과, 쿠키. **비밀번호 없음** |
-| `db/result.json` | 최근 조회 결과. 오프라인에서 다시 그림 |
-| `db/testdata/` | 데모·단위 테스트용 고정 응답. 과제·공지·자료 HTML, `timetable.json`, `student.json` |
-
-`login.json` 예제:
-
-```json
-{
-  "studentId": "",
-  "password": ""
-}
-```
-
-학번이나 비밀번호 중 하나라도 비어 있으면 TUI·GUI 모두 지금처럼 직접 입력합니다.
-
-`session.json` 필드:
-
-```json
-{
-  "studentId": "20241234",
-  "userNo": "20241234",
-  "studentName": "홍길동",
-  "collegeName": "IT문화예술대학",
-  "deptName": "컴퓨터공학과",
-  "deptCd": "320",
-  "savedAt": "2026-08-16T12:00:00",
-  "cookies": []
-}
-```
-
----
-
-## 요청 흐름
-
-[seowon-client-api](https://github.com/hy040504/seowon-client-api) 와 같은 조회 경로입니다.
-
-1. `GET /home/mainPop/popup/login` — 세션 쿠키
-2. NICE `encryptData` 를 `POST /user/userHome/login`
-3. 이름·학과: `sugangh.seowon.ac.kr` 의 `findAppcsLogin` / `findStunoInfo` (SSV)
-4. `POST /crs/creCrsHome/classRoomCrsCreList` — 과목
-5. `POST /asmnt/asmntHome/stuAsmntGridList` — 과제
-6. `POST /bbs/bbsLect/atclList` — 공지(`NOTICE`) · 강의자료실(`PDS`)
-7. `POST /bbs/bbsLect/viewAtcl` — 공지·자료 본문·첨부 (`fileDown` → `/file/download/`)
-8. `POST /lesson/lessonLect/lessonList` — 이러닝 차시
-9. `POST /com/sapl/SaplapCtr/findAppcsDtlsList.do` — 확정 수강 시간표 (`timtbNm` 격자, 신청·취소 없음)
-10. (선택) `POST /asmnt/asmntLect/Form/asmntStuMain` — 과제 상세
-11. (선택) `POST /asmnt/asmntHome/sendAsmnt` — 과제 제출
-12. (선택) `POST /lesson/lessonLect/viewLessonStudyDetail` — 학습률
-
-HTTP는 표준 라이브러리 `urllib`, JSON은 표준 라이브러리 `json` 입니다.  
-로그인 암호는 `lib/back/crypto.py` 의 NICE DES (기존 C/JS 구현과 동일 벡터).
-
----
-
-## 하지 않는 것
-
-- 이러닝 자동 시청 · 출석 처리 · 시청 기록 전송
-- 수강신청 · 희망바구니
-- 성적 조회
-- 다른 학생 계정 조회
-- `.dat` / `.txt` / SQLite
-- C 소스 · 컴파일러 · `seowon-tui.exe` / `seowon-gui.exe`
-- `session.json` · `result.json` · `config.json` 에 비밀번호 저장
-- `login.json` 을 Git·원격에 올리기 (로컬 전용)
-
----
-
-## 변경 사항
-
-코드에 이미 들어가 있는 내용을 README에 한곳에 모아 둡니다.
-
-### 1.1.0
-
-- 공지 · 강의실 자료 · 수강 시간표 조회. 시간표는 확정 목록만 읽고 신청·취소는 하지 않는다.
-- GUI 과제 제출(`sendAsmnt`). 펼침 칸에서 `제출하기` 가 파일 선택 왼쪽.
-- 과제·공지·자료 과목 필터. 목록은 웹처럼 고른 행 아래를 펼친다.
-- 홈 인사 `안녕하세요, 이름님!`. Profile에 대학·학과. Shortcuts는 현황·설정·정보.
-- 공지 제목이 목록 번호로 나오던 파서를 고친다.
-- 독스트링을 Google / NumPy 형식으로 맞추고 타입 힌트를 채운다.
-
-### Python 이식
-
-- TUI · 조회 엔진 · 단위 테스트 · GUI 가 모두 Python 3.10+.
-- GUI는 `lib.back.App` 을 같은 프로세스에서 호출합니다.
-- 실행: `python seowon_tui.py` / `python seowon_gui.py`. C 소스, `.exe`, npm lock 은 없습니다.
-- JSON은 표준 라이브러리 `json`, HTTPS 는 `urllib`. 로그인 암호는 `crypto.py` 의 NICE DES.
-
-### 화면 · 입력
-
-- [SeowonProject](https://github.com/hy040504/SeowonProject) 처럼 `lib/front` · `lib/back` 으로 나누고, 주석은 한국어.
-- 짧은 함수는 Google 스타일 독스트링, 긴·핵심 함수는 NumPy 스타일. 인자·반환은 타입 힌트 (`str | None`, `dict[str, Any]`).
-- 메뉴는 계층입니다. `z`/`0` 뒤로, `q` 종료.
-- 비밀번호는 `*` 로 가리고, 마지막 글자만 잠깐 보여 줌.
-
-### 로그인 후 이름 · 학번 · 학과
-
-- e-campus 로그인만으로는 이름·학과가 안 나와서 `sugangh` SSO SSV(`findAppcsLogin`, `findStunoInfo`)를 씀.
-- TUI·GUI 로그인 줄에 `이름 (학번) · 학과` 를 표시.
-- `session.json` 에 `studentName`, `deptName`, `deptCd` 를 같이 저장. 비밀번호는 `session.json` 에 넣지 않음.
-- 로그인 계정은 `login.json`. 학번·비밀번호가 둘 다 있으면 입력을 건너뛰고, 하나라도 비면 직접 입력.
-
-### GUI
-
-- `lib/front/gui` 에 PyQt6 화면. 조회 메뉴는 그대로이고, 색은 스마트홈 태블릿(라벤더 레일, 파랑/핑크 타일, 흰 둥근 카드).
-- 사이드바는 접히지 않는다. 이모지 대신 `icons.py` 흰 선 아이콘 + 짧은 라벨이 항상 보인다. 고른 항목은 파란 원.
-- 로그인 뒤 첫 화면은 홈(`안녕하세요, 이름님!`, 숫자 칸, 타일, 원형 조회, Shortcuts, Profile).
-- 페이지 전환·토스트·로딩 막·목록 등장·타일 호버에 짧은 페이드가 있다.
-- 메뉴에 `지금 할 것`(기간 안 미제출+들을 차시)과 `프로그램 정보` 가 있다. 공지·강의실 자료·시간표는 e-campus/수강신청 조회와 같다. 성적은 없다. 과제는 GUI에서 제출한다.
-- 과제·공지·자료는 웹처럼 행 아래를 펼친다. 과목 필터가 있다. 과제 제출 버튼은 파일 선택 왼쪽.
-- 공지 제목은 목록 번호 span(`1`, `3`)이 아니라 `viewAtcl` 링크 텍스트를 읽는다.
-- 과제·이러닝은 표 대신 카드 목록. 상태는 알약, 오류는 토스트.
-- 데모 모드 칸은 파란 네모 안 V자 체크.
-- 로그인·조회 중에는 `loading_e1` 스피너 오버레이.
-- `seowon_gui.py` 는 PyQt6 가 없으면 pip 설치를 시도하고, 실패는 `seowon-gui.log` 에 남긴다.
-- Windows 더블클릭은 `GUI실행.bat` (ASCII 전용).
-
-### 웹 분리
-
-- 브라우저 웹은 이 저장소에 두지 않는다. [seowon-client-web](https://github.com/hy040504/seowon-client-web) 을 본다.
-
----
-
-## 라이선스
-
-MIT. 수업용 **비공식** 클라이언트입니다.
+MIT. 수업용 비공식 클라이언트입니다.
