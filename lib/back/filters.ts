@@ -269,65 +269,124 @@ function percentToken(raw: unknown): number | null {
   return clampPercent(n);
 }
 
+const PROGRESS_KEYS = ["prgrRatio", "progressPercent", "studyPrgrRatio", "prgrRate"] as const;
+
+function cellText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** 진도율 칸의 퍼센트를 모은다. 앞 행이 0이어도 뒤 행의 값을 버린다. */
+function collectHtmlPercents(html: string, found: number[]): void {
+  const rows = html.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
+  let ratioIndex = -1;
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) => cellText(m[1] || ""));
+    if (!cells.length) continue;
+    if (ratioIndex < 0) {
+      ratioIndex = cells.findIndex((cell) => /진도율|학습률|진행률|prgrRatio|prgrRate/i.test(cell));
+      continue;
+    }
+    const raw = cells[ratioIndex];
+    if (raw == null) continue;
+    const n = percentToken(raw);
+    if (n != null) found.push(n);
+  }
+
+  const text = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ");
+  for (const match of text.matchAll(/(?:진도율|학습률|진행률|prgrRatio|prgrRate|studyPrgrRatio|progressPercent)[^%]{0,240}?(\d{1,3}(?:\.\d+)?)\s*%/gi)) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n)) found.push(clampPercent(n));
+  }
+  for (const match of html.matchAll(/["']?(?:prgrRatio|progressPercent|studyPrgrRatio|prgrRate)["']?\s*[:=]\s*["']?(\d{1,3}(?:\.\d+)?)/gi)) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n)) found.push(clampPercent(n));
+  }
+  for (const match of html.matchAll(/class=["'][^"']*(?:progress|prgr|ratio)[^"']*["'][^>]*style=["'][^"']*width\s*:\s*(\d{1,3}(?:\.\d+)?)%/gi)) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n)) found.push(clampPercent(n));
+  }
+}
+
 /**
  * 학습 이력 HTML 에서 진도율을 읽는다.
- * 비율이 없는 이력 화면은 0 이다. 로그인 화면은 null.
+ * 이력 행이 여러 개면 가장 높은 진도율을 쓴다. 이력이 없을 때만 0 이다.
  */
 function progressFromHtml(html: string): number | null {
-  const text = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ");
-  const login = /user\/userHome\/login|name=["']encryptData["']|id=["']loginForm["']/i.test(text);
-  const labeled = text.match(/(?:진도율|학습률|진행률|prgrRatio|prgrRate)[^0-9%]{0,80}(\d{1,3}(?:\.\d+)?)\s*%/i);
-  if (labeled?.[1]) return clampPercent(Number(labeled[1]));
-  const jsonish = text.match(/"(?:prgrRatio|progressPercent|studyPrgrRatio|prgrRate)"\s*:\s*"?(\d{1,3}(?:\.\d+)?)/);
-  if (jsonish?.[1]) return clampPercent(Number(jsonish[1]));
+  const login = /user\/userHome\/login|name=["']encryptData["']|id=["']loginForm["']/i.test(html);
   if (login) return null;
-  if (/학습\s*이력|학습시간|studyDetail|조회된\s*데이터가\s*없습니다/i.test(text)) return 0;
+  const found: number[] = [];
+  collectHtmlPercents(html, found);
+  if (found.length) return Math.max(...found);
+  const text = html.replace(/<[^>]+>/g, " ");
+  if (/조회된\s*데이터가\s*없습니다/.test(text)) return 0;
   return null;
+}
+
+function collectProgressPercents(obj: unknown, found: number[], depth: number): void {
+  if (obj == null || depth > 8) return;
+  if (typeof obj === "string") {
+    const trimmed = obj.trim();
+    if ((trimmed.startsWith("{") || trimmed.startsWith("[")) && trimmed.length > 1) {
+      try {
+        collectProgressPercents(JSON.parse(trimmed), found, depth + 1);
+        return;
+      } catch {
+        /* HTML 또는 일반 문자열 */
+      }
+    }
+    const token = percentToken(trimmed);
+    if (token != null && trimmed.length <= 8) {
+      found.push(token);
+      return;
+    }
+    const fromHtml = progressFromHtml(trimmed);
+    if (fromHtml != null) found.push(fromHtml);
+    return;
+  }
+  if (typeof obj === "number") {
+    const n = percentToken(obj);
+    if (n != null) found.push(n);
+    return;
+  }
+  if (typeof obj !== "object") return;
+  if (Array.isArray(obj)) {
+    for (const item of obj) collectProgressPercents(item, found, depth + 1);
+    return;
+  }
+  const rec = obj as Record<string, unknown>;
+  let keyed = false;
+  for (const key of PROGRESS_KEYS) {
+    if (!(key in rec) || rec[key] == null || rec[key] === "") continue;
+    keyed = true;
+    const n = percentToken(rec[key]);
+    if (n != null) found.push(n);
+    else collectProgressPercents(rec[key], found, depth + 1);
+  }
+  for (const [key, val] of Object.entries(rec)) {
+    if ((PROGRESS_KEYS as readonly string[]).includes(key)) continue;
+    if (typeof val === "string" && /[<>]|진도율|prgrRatio/i.test(val)) collectHtmlPercents(val, found);
+    else if (val && typeof val === "object") collectProgressPercents(val, found, depth + 1);
+    else if (!keyed && typeof val === "number") continue;
+  }
 }
 
 /**
  * 학습률 응답에서 퍼센트를 찾는다.
- * prgrRatio / progressPercent 만 보고, 페이지 번호 같은 다른 숫자는 쓰지 않는다.
+ * prgrRatio / progressPercent 와 진도율 칸만 보고, 그 중 가장 높은 값을 쓴다.
+ * 페이지 번호 같은 다른 숫자는 쓰지 않는다.
  * @param obj - 서버 응답 트리 또는 HTML
  * @returns 반올림된 퍼센트. 없으면 null
  */
 export function findProgressPercent(obj: unknown): number | null {
-  if (obj == null) return null;
-  if (typeof obj === "string") {
-    const trimmed = obj.trim();
-    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-      try {
-        return findProgressPercent(JSON.parse(trimmed));
-      } catch {
-        return progressFromHtml(obj);
-      }
-    }
-    return percentToken(trimmed) ?? progressFromHtml(obj);
-  }
-  if (typeof obj === "number") return percentToken(obj);
-  if (typeof obj !== "object") return null;
-  if (Array.isArray(obj)) {
-    for (const it of obj) {
-      const n = findProgressPercent(it);
-      if (n != null) return n;
-    }
-    return null;
-  }
-  const rec = obj as Record<string, unknown>;
-  for (const key of ["prgrRatio", "progressPercent", "studyPrgrRatio", "prgrRate"]) {
-    if (!(key in rec) || rec[key] == null || rec[key] === "") continue;
-    const n = percentToken(rec[key]);
-    if (n != null) return n;
-    const nested = findProgressPercent(rec[key]);
-    if (nested != null) return nested;
-  }
-  for (const val of Object.values(rec)) {
-    if (val && typeof val === "object") {
-      const n = findProgressPercent(val);
-      if (n != null) return n;
-    }
-  }
-  return null;
+  const found: number[] = [];
+  collectProgressPercents(obj, found, 0);
+  if (!found.length) return null;
+  return Math.max(...found);
 }
 
 /**

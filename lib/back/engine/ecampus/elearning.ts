@@ -364,7 +364,7 @@ export function parseEcampusLessonSchedulesHtml(
     const lessonScheduleId = (header.attr("id") ?? "").replace(/^dropdown_/, "");
     const content = $(`#${escapeCssId(lessonScheduleId)}`);
 
-    if (!lessonScheduleId || content.length === 0) return;
+    if (!lessonScheduleId) return;
 
     const schedule: EcampusLessonSchedule = {
       lessonScheduleId,
@@ -374,7 +374,7 @@ export function parseEcampusLessonSchedulesHtml(
       lessons: []
     };
 
-    content.find(".card").each((__, cardElement) => {
+    if (content.length) content.find(".card").each((__, cardElement) => {
       const card = $(cardElement);
       const href = card.find("a.header").first().attr("href") ?? "";
       const buttonOnclick = card.find("button[onclick]").first().attr("onclick") ?? "";
@@ -472,8 +472,16 @@ export function parseEcampusLessonListHtml(
   html: string,
   options: EcampusLessonParseOptions = {}
 ): EcampusLessonItem[] {
-  const lessons = parseEcampusLessonSchedulesHtml(html, options).flatMap((s) => s.lessons);
-  return lessons.length > 0 ? lessons : parseLooseLessonCards(html, options);
+  const nested = parseEcampusLessonSchedulesHtml(html, options).flatMap((s) => s.lessons);
+  const loose = parseLooseLessonCards(html, options);
+  const seen = new Set<string>();
+  const lessons: EcampusLessonItem[] = [];
+  for (const item of [...nested, ...loose]) {
+    if (!item.lessonCntsId || seen.has(item.lessonCntsId)) continue;
+    seen.add(item.lessonCntsId);
+    lessons.push(item);
+  }
+  return lessons;
 }
 
 /**

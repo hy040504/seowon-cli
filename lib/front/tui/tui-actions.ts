@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+/** 저장 파일명에서 경로에 쓸 수 없는 문자를 뺀다. */
 function safeName(name) {
   return String(name || "download")
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
@@ -17,6 +18,7 @@ export function makeActions(deps) {
   const { ROOT, c, A, choose, pickFromList, confirm, ask, pickFile, spin, failLine, box, clearScreen, waitEnter, theme } = deps;
   let lastDir = path.join(ROOT, "downloads");
 
+  /** 저장 폴더를 고른다. 직전 폴더에서 이어서 연다. */
   async function chooseSavePath(ctx, fileName) {
     const name = safeName(fileName);
     fs.mkdirSync(lastDir, { recursive: true });
@@ -224,11 +226,12 @@ export function makeActions(deps) {
     await pickAndSaveFiles(ctx, files, extra);
   }
 
-  async function saveTimetable(ctx, kind) {
-    const dest = await chooseSavePath(ctx, kind === "svg" ? "timetable.svg" : "timetable.html");
+  /** 시간표 PNG 를 고른 폴더에 쓴다. SVG·HTML 은 저장하지 않는다. */
+  async function saveTimetable(ctx) {
+    const dest = await chooseSavePath(ctx, "timetable.png");
     if (!dest) return;
-    const r = await spin(`시간표.${kind}`, () =>
-      ctx.api.saveTimetableFile({ kind, savePath: dest, timeoutMs: 30000 })
+    const r = await spin("시간표.png", () =>
+      ctx.api.saveTimetableFile({ savePath: dest, timeoutMs: 30000 })
     );
     if (!r.ok) return console.log(c(`  ${failLine(r)}`, A.red));
     console.log(c(`  저장 ${r.saved || dest}`, A.green));

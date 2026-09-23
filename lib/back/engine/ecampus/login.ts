@@ -114,6 +114,7 @@ import {
   createViewLessonStudyDetailRequest,
   downloadElearningMp4 as downloadElearningMp4File,
   parseEcampusLessonListHtml,
+  parseEcampusLessonSchedulesHtml,
   parseEcampusLessonStudyWindowHtml,
   stringifyEcampusLessons
 } from "./elearning.js";
@@ -484,12 +485,33 @@ export class EcampusClient {
   async getElearningLessonList(
     options: GetElearningLessonListOptions
   ): Promise<EcampusLessonItem[]> {
-    const html = await this.getElearningLessonListHtml(options);
-    return parseEcampusLessonListHtml(html, {
+    const progressTypeCd = await this.resolveLessonProgressType(options);
+    const parseOptions = {
       baseUrl: this.baseUrl,
       crsCreCd: options.crsCreCd,
-      progressTypeCd: options.progressTypeCd ?? DEFAULT_PROGRESS_TYPE_CD
-    });
+      progressTypeCd
+    };
+    const html = await this.collectLessonListHtml(options, progressTypeCd, "");
+    const lessons = parseEcampusLessonListHtml(html, parseOptions);
+    const seen = new Set(lessons.map((item) => item.lessonCntsId));
+    const covered = new Set(lessons.map((item) => item.lessonScheduleId));
+    const pending = parseEcampusLessonSchedulesHtml(html, parseOptions).filter(
+      (schedule) => schedule.lessonScheduleId && !covered.has(schedule.lessonScheduleId)
+    );
+    for (const schedule of pending.slice(0, 40)) {
+      const moreHtml = await this.postLessonListPage(options, progressTypeCd, schedule.lessonScheduleId, 1);
+      const more = parseEcampusLessonListHtml(moreHtml, parseOptions);
+      let gained = 0;
+      for (const item of more) {
+        if (!item.lessonCntsId || seen.has(item.lessonCntsId)) continue;
+        seen.add(item.lessonCntsId);
+        lessons.push(item);
+        gained += 1;
+      }
+      // 주차 id 를 무시하고 같은 전체 목록을 다시 주면 남은 주차도 같다.
+      if (gained === 0 && more.length > 0) break;
+    }
+    return lessons;
   }
 
   /**
@@ -508,16 +530,20 @@ export class EcampusClient {
    * @returns {Promise<string>} 이러닝 목록 HTML 조각
    */
   async getElearningLessonListHtml(options: GetElearningLessonListOptions): Promise<string> {
+    const progressTypeCd = await this.resolveLessonProgressType(options);
+    return this.collectLessonListHtml(options, progressTypeCd, "");
+  }
+
+  /** 과목의 진도 방식. 호출자가 지정하지 않으면 강의실 정보에서 읽는다. */
+  private async resolveLessonProgressType(options: GetElearningLessonListOptions): Promise<string> {
+    if (options.progressTypeCd) return options.progressTypeCd;
     await this.ensureAuthenticated();
     const formUrl = new URL("/lesson/lessonLect/Form/lessonListForm", this.baseUrl);
     formUrl.searchParams.set("mcd", options.mcd ?? DEFAULT_LESSON_MENU_CODE);
     formUrl.searchParams.set("crsCreCd", options.crsCreCd);
-
     await this.http.get<string>(formUrl.pathname + formUrl.search, {
       headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" }
     });
-
-    // 해당 과목의 진도 체크 방식 등 부가 정보를 비동기로 획득
     const creInfoRes = await this.http.post<{
       result?: number;
       returnVO?: { progressTypeCd?: string };
@@ -528,20 +554,29 @@ export class EcampusClient {
         ...COMMON_AJAX_HEADERS
       }
     });
+    return creInfoRes.data.returnVO?.progressTypeCd || DEFAULT_PROGRESS_TYPE_CD;
+  }
 
-    const progressTypeCd =
-      options.progressTypeCd ??
-      creInfoRes.data.returnVO?.progressTypeCd ??
-      DEFAULT_PROGRESS_TYPE_CD;
-
+  /**
+   * 이러닝 목록을 페이지와 주차까지 모은다.
+   * 지금 열린 주차만 있는 첫 화면에서 끊기지 않게 한다.
+   */
+  /** 이러닝 목록 한 페이지. 빈 주차는 이 한 번만 다시 묻는다. */
+  private async postLessonListPage(
+    options: GetElearningLessonListOptions,
+    progressTypeCd: string,
+    lessonScheduleId: string,
+    pageIndex: number
+  ): Promise<string> {
+    await this.ensureAuthenticated();
     const response = await this.http.post<string>(
       "/lesson/lessonLect/lessonList",
       new URLSearchParams({
-        pageIndex: "1",
-        listScale: "10",
+        pageIndex: String(pageIndex),
+        listScale: "100",
         searchValue: "",
         crsCreCd: options.crsCreCd,
-        lessonScheduleId: "",
+        lessonScheduleId,
         subParam: "GRID",
         progressTypeCd
       }),
@@ -554,8 +589,33 @@ export class EcampusClient {
         }
       }
     );
+    return response.data || "";
+  }
 
-    return response.data;
+  /**
+   * 이러닝 목록을 페이지 끝까지 모은다.
+   * 100건 미만이면 다음 페이지는 없다.
+   */
+  private async collectLessonListHtml(
+    options: GetElearningLessonListOptions,
+    progressTypeCd: string,
+    lessonScheduleId: string
+  ): Promise<string> {
+    const chunks: string[] = [];
+    let previous = "";
+    for (let page = 1; page <= 20; page++) {
+      const html = await this.postLessonListPage(options, progressTypeCd, lessonScheduleId, page);
+      if (!html || html === previous) break;
+      previous = html;
+      chunks.push(html);
+      const count = parseEcampusLessonListHtml(html, {
+        baseUrl: this.baseUrl,
+        crsCreCd: options.crsCreCd,
+        progressTypeCd
+      }).length;
+      if (count < 100) break;
+    }
+    return chunks.join("\n");
   }
 
   /**

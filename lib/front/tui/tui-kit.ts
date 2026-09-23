@@ -21,6 +21,7 @@ const ESC_WAIT_MS = 50;
 const LEAD_MS = 40;
 const TRAIL_MS = 80;
 
+/** 키 입력을 문자열로 맞춘다. */
 function toBinary(buf) {
   return Buffer.isBuffer(buf) ? buf.toString("utf8") : String(buf);
 }
@@ -311,6 +312,7 @@ function waitKeyOrTick(ms) {
   });
 }
 
+/** 한글은 2칸. 색 코드는 너비에서 뺀다. */
 function dw(s) {
   const raw = String(s).replace(/\x1b\[[0-9;]*m/g, "");
   let n = 0;
@@ -337,6 +339,7 @@ function trunc(s, w) {
   return `${out}…`;
 }
 
+/** 칸보다 긴 글은 선택 줄에서만 옆으로 흘려 끝까지 보여 준다. */
 function marquee(text, width, offset) {
   const raw = String(text ?? "");
   if (width <= 0) return "";
@@ -364,6 +367,7 @@ function marquee(text, width, offset) {
   return pad(built, width);
 }
 
+/** 직전 메뉴 줄을 지우고 같은 자리에 다시 그린다. */
 function paint(lines, state) {
   const count = state.count || 0;
   if (count > 0) output.write(`${ESC}[${count}A`);
@@ -425,6 +429,91 @@ export function makeKit(theme) {
     return Object.keys(brief).length ? `${name}(${JSON.stringify(brief)})` : `${name}()`;
   }
 
+  /** Campus 메서드가 실제로 타는 lib/back 파일. 경로는 lib/back 기준. */
+  const CALL_SOURCES = {
+    liveLogin: {
+      service: ["services/ecampus/login.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/crypto.ts"]
+    },
+    ensureSugang: {
+      service: ["services/ecampus/login.ts"],
+      engine: ["engine/course-registration/client.ts", "engine/hope-basket/client.ts"]
+    },
+    fetchSnapshot: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/courses.ts", "engine/ecampus/classroom.ts", "engine/ecampus/elearning.ts"]
+    },
+    listAssignments: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts", "engine/ecampus/courses.ts", "engine/ecampus/elearning.ts"]
+    },
+    fetchAssignmentDetail: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts"]
+    },
+    submitAssignment: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts"]
+    },
+    fetchNotices: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts"]
+    },
+    fetchNoticeDetail: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts"]
+    },
+    fetchMaterials: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts"]
+    },
+    fetchMaterialAttachments: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/classroom.ts"]
+    },
+    downloadCampusFile: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts"]
+    },
+    listLessons: {
+      service: ["services/ecampus/classroom.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/courses.ts", "engine/ecampus/elearning.ts"]
+    },
+    fetchProgress: {
+      service: ["services/ecampus/elearning.ts"],
+      engine: ["engine/utils.ts"]
+    },
+    downloadLessonVideo: {
+      service: ["services/ecampus/elearning.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/elearning.ts"]
+    },
+    fetchTimetable: {
+      service: ["services/timetable/timetable.ts", "services/ecampus/login.ts"],
+      engine: ["engine/course-registration/client.ts", "engine/hope-basket/client.ts", "engine/hope-basket/timetable.ts"]
+    },
+    saveTimetableFile: {
+      service: ["services/timetable/timetable.ts", "services/ecampus/login.ts"],
+      engine: ["engine/course-registration/client.ts", "engine/hope-basket/client.ts", "engine/hope-basket/timetable.ts"]
+    },
+    fetchScores: {
+      service: ["services/ecampus/score.ts"],
+      engine: ["engine/ecampus/login.ts", "engine/ecampus/score.ts"]
+    },
+    fetchErpGrades: {
+      service: ["services/erp/grades.ts", "services/ecampus/login.ts"],
+      engine: ["engine/erp/client.ts", "engine/erp/grades.ts"]
+    }
+  };
+
+  function sourceLines(name) {
+    const src = CALL_SOURCES[name];
+    if (!src) return "";
+    const pad = " ".repeat(16);
+    const service = src.service.join(" · ");
+    const engine = src.engine.join(" · ");
+    return `\n${pad}service  ${service}\n${pad}engine   ${engine}`;
+  }
+
   function bindApi(api) {
     const names = [
       "liveLogin",
@@ -453,7 +542,7 @@ export function makeKit(theme) {
       const orig = api[name]?.bind(api);
       if (!orig) continue;
       api[name] = async (arg) => {
-        trace(`→ ${formatCall(name, arg)}`);
+        trace(`→ ${formatCall(name, arg)}${sourceLines(name)}`);
         const r = await orig(arg);
         if (r?.ok) {
           const extra = r.saved ? ` 저장 ${r.saved}` : "";
@@ -630,7 +719,7 @@ export function makeKit(theme) {
         if (dw(bodyRaw) > maxW) state.needMarquee = true;
         const body = dw(bodyRaw) > maxW ? marquee(bodyRaw, maxW, on ? marqueeOff : 0) : bodyRaw;
         state.hits.push({ line: lines.length, index: liveAt });
-        if (on) lines.push(`${c("❯", acc(), A.bold)} ${c(body, A.bold, acc())}`);
+        if (on) lines.push(`${c("❯", acc(), A.bold)} ${rowBar(body)}`);
         else lines.push(`  ${c(body, A.white)}`);
       });
       paint(lines, state);
@@ -763,7 +852,7 @@ export function makeKit(theme) {
           }).join("  ");
           const num = String(abs + 1).padStart(2);
           state.hits.push({ line: lines.length, index: abs });
-          if (on) lines.push(`${c("❯", acc(), A.bold)} ${c(num, A.bold, "\x1b[7m")}  ${cells}`);
+          if (on) lines.push(`${c("❯", acc(), A.bold)} ${rowBar(`${num}  ${cells}`)}`);
           else lines.push(`  ${c(num, A.gray)}  ${cells}`);
         });
       }
@@ -859,6 +948,19 @@ export function makeKit(theme) {
 
   function bg256(n) {
     return `\x1b[48;5;${n}m`;
+  }
+
+  /**
+   * 선택 줄 배경. 글자색(등급·미제출 빨강)은 유지하고, 칸이 짧으면 화면 끝까지 채운다.
+   * 줄바꿈으로 다시 그리기가 어긋나지 않게 터미널 너비 안쪽에서 멈춘다.
+   */
+  function rowBar(text) {
+    const limit = Math.max(16, (output.columns || 80) - 4);
+    const width = dw(text) >= limit ? dw(text) : limit;
+    const bg = bg256(treeBg());
+    const padded = pad(String(text ?? ""), width);
+    const kept = `${bg}\x1b[97m${padded.split(A.reset).join(`${A.reset}${bg}\x1b[97m`)}`;
+    return `${kept}${A.reset}`;
   }
 
   function pill(label, on) {
@@ -1084,7 +1186,7 @@ export function makeKit(theme) {
         const body = dw(raw) > nameW ? marquee(raw, nameW, on ? marqueeOff : 0) : pad(raw, nameW);
         state.hits.push({ line: lines.length, index: abs, file: !row.node.isDir, dir: row.node.isDir, up: Boolean(row.node.isUp) });
         if (on) {
-          lines.push(`${c("❯", acc(), A.bold)} ${bg256(treeBg())}\x1b[97m${body}${A.reset}`);
+          lines.push(`${c("❯", acc(), A.bold)} ${rowBar(body)}`);
         } else if (row.node.isDir) {
           lines.push(`  ${c(pref, A.dim)}${c(glyph, acc())}${c(row.node.name, A.white)}`);
         } else {

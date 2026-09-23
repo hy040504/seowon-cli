@@ -68,7 +68,7 @@ export async function fetchProgress(
       stdNo,
       crsCreCd,
       pageIndex: "1",
-      listScale: "10"
+      listScale: "100"
     }),
     {
       headers: {

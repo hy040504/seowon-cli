@@ -11,19 +11,48 @@
  */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { stdin as input, stdout as output } from "node:process";
 import { makeKit } from "./tui-kit.js";
 import { makeActions } from "./tui-actions.js";
+import { FETCH_LIMIT } from "../../back/constants.js";
 import { Campus } from "../../back/campus.js";
 import { watchListEmptyMessage } from "../../back/filters.js";
+import { mapLimit } from "../../back/utils.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..", "..");
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+
+/** .env 의 SEOWON_SID · SEOWON_PW. 이미 있는 환경변수는 덮지 않는다. */
+function loadDotEnv(file) {
+  let text = "";
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    return;
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] == null || process.env[key] === "") process.env[key] = value;
+  }
+}
+
+loadDotEnv(path.join(ROOT, ".env"));
 const APP_TITLE = "서원대 모아보기";
 
 const TTY = Boolean(output.isTTY) && !process.env.NO_COLOR;
@@ -48,6 +77,7 @@ const WAVE = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█", "▇", "�
 const WAVE_MS = 320;
 const CFG_PATH = path.join(ROOT, "data", "tui-config.json");
 
+/** ANSI 색을 붙인다. TTY 가 아니면 그대로 둔다. */
 function c(text, ...codes) {
   if (!TTY) return String(text);
   return `${codes.join("")}${text}${A.reset}`;
@@ -97,6 +127,7 @@ const theme = {
   clearOnNav: true
 };
 
+/** 테마 색과 화면 지우기 설정을 data/tui-config.json 에 남긴다. */
 function saveConfig() {
   try {
     fs.mkdirSync(path.dirname(CFG_PATH), { recursive: true });
@@ -109,6 +140,7 @@ function saveConfig() {
   }
 }
 
+/** 테마 id 를 현재 색으로 적용한다. persist 면 파일에도 쓴다. */
 function applyTheme(id, persist = true) {
   const spec = THEMES[id] || THEMES.seowon;
   theme.id = THEMES[id] ? id : "seowon";
@@ -122,6 +154,7 @@ function applyTheme(id, persist = true) {
   if (persist) saveConfig();
 }
 
+/** 저장된 테마가 있으면 읽고, 없으면 서원 블루를 쓴다. */
 function loadTheme() {
   try {
     const raw = JSON.parse(fs.readFileSync(CFG_PATH, "utf8"));
@@ -145,6 +178,7 @@ function paint256(text, n) {
 function stripAnsi(s) {
   return String(s).replace(/\x1b\[[0-9;]*m/g, "");
 }
+/** 한글은 2칸으로 보는 화면 너비. ANSI 색 코드는 빼 둔다. */
 function dw(s) {
   let n = 0;
   for (const ch of stripAnsi(s)) {
@@ -220,6 +254,7 @@ function bar(pct, width = 28) {
   const col = p >= 80 ? A.green : p >= 40 ? theme.accent : A.yellow;
   return `${c("|", A.gray)}${c("█".repeat(fill) + "░".repeat(width - fill), col)}${c("|", A.gray)} ${c(`${p.toFixed(0)}%`.padStart(4), A.bold)}`;
 }
+/** 조회가 끝나는 동안 같은 줄에 대기 표시를 둔다. 결과 로그와 붙지 않게 지우고 쓴다. */
 async function spin(label, work) {
   if (!TTY) {
     process.stdout.write(`${label} ...\n`);
@@ -267,34 +302,11 @@ async function ask(rl, label, fallback = "", opt = {}) {
   ).trim();
   return a || fallback;
 }
-function htmlAttr(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;");
-}
-
-/** 브라우저에서 이캠퍼스 강의 창으로 POST 이동한다. CLI 세션 쿠키는 넘기지 않는다. */
-function openLessonSite(row) {
-  const crsCreCd = String(row?.crsCreCd || "");
-  const lessonCntsId = String(row?.lessonCntsId || "");
-  if (!crsCreCd || !lessonCntsId) return { ok: false, url: "", error: "강의 주소에 필요한 차시 정보가 없습니다." };
-  const url = `https://ecampus.seowon.ac.kr/lesson/lessonOpen/lessonNewWindow?crsCreCd=${encodeURIComponent(crsCreCd)}`;
-  const page = `<!doctype html>
-<meta charset="utf-8">
-<title>이캠퍼스 강의 창</title>
-<form id="go" method="post" action="${htmlAttr(url)}">
-<input type="hidden" name="lessonCntsId" value="${htmlAttr(lessonCntsId)}">
-<input type="hidden" name="seekFile" value="">
-<input type="hidden" name="downloadYn" value="">
-<input type="hidden" name="progressTypeCd" value="WEEK">
-</form>
-<script>document.getElementById("go").submit()</script>
-`;
-  const file = path.join(os.tmpdir(), "seowon-cli-lesson.html");
-  fs.writeFileSync(file, page, "utf8");
+/** 브라우저에서 이캠퍼스 메인을 연다. CLI 세션 쿠키는 넘기지 않는다. */
+function openCampusMain() {
+  const url = "https://ecampus.seowon.ac.kr/home/mainHome/Form/main";
   const opener = process.platform === "win32" ? "explorer.exe" : process.platform === "darwin" ? "open" : "xdg-open";
-  const child = spawn(opener, [file], { detached: true, stdio: "ignore", windowsHide: true });
+  const child = spawn(opener, [url], { detached: true, stdio: "ignore", windowsHide: true });
   child.unref();
   return { ok: true, url, error: "" };
 }
@@ -505,6 +517,21 @@ function pendingLessonCount(course) {
   return (course?.elearning || []).filter((x) => x.needsWatch).length;
 }
 
+/** 차시 목록 상태. 기간이 지난 미학습은 완료로 치지 않는다. */
+function lessonRowStatus(row) {
+  const attendance = String(row?.attendanceStatus || "").trim();
+  if (row?.needsWatch) return "미학습";
+  if (/미학습|학습중/.test(attendance)) return "기간 외";
+  if (/학습완료|출석|수료|완료/.test(attendance)) return "완료";
+  return attendance || "완료";
+}
+
+function lessonRowPaint(text, row) {
+  const label = lessonRowStatus(row);
+  if (label === "완료") return c(text, A.green, A.bold);
+  return c(text, A.yellow, A.bold);
+}
+
 /** 미완 건수. 0은 회색, 1 이상은 밝은 빨강. 표 칸의 뒤 공백은 유지한다. */
 function alertCount(n) {
   const text = String(n);
@@ -534,6 +561,7 @@ function asgColumns() {
   ];
 }
 
+/** 세션이 없으면 로그인한다. force 면 학번을 다시 묻는다. */
 async function ensureLogin(ctx, force = false) {
   const { api, rl, opt } = ctx;
   if (api.loggedIn() && api.student && !force) return true;
@@ -569,14 +597,17 @@ async function needAuth(ctx) {
   return ensureLogin(ctx);
 }
 
+/** 학번 로그인, .env 로그인, 로그아웃. */
 async function pageLogin(ctx) {
   const { api, rl } = ctx;
   while (true) {
     beginScreen("🔑 로그인", A.blue);
-    console.log(c("  학번으로 로그인합니다. 성공하면 지금 할 것으로 갈 수 있습니다.", A.dim));
+    console.log(c("  학번으로 로그인합니다. 2번은 .env 의 SEOWON_SID · SEOWON_PW 를 사용합니다.", A.dim));
+    const envSid = cleanSid(process.env.SEOWON_SID || "");
+    const envPw = cleanPw(process.env.SEOWON_PW || "");
     const a = await choose(ctx, "로그인", [
       ["1", "학번 로그인", "1"],
-      ["2", "프로필", "2"],
+      ["2", envSid && envPw ? `.env 로 로그인 · ${envSid}` : ".env 로 로그인 · 값 없음", "2"],
       ["3", "로그아웃", "3"],
       ["4", "지금 할 것 보러 가기", "4"]
     ]);
@@ -586,20 +617,14 @@ async function pageLogin(ctx) {
       continue;
     }
     if (a === "2") {
-      const me = await spin("currentStudent", () => api.currentStudent());
-      console.log(me.data?.loggedIn ? c(`  로그인됨 ${me.data.student?.studentName || ""}`, A.green) : c("  로그인 전", A.gray));
-      if (api.loggedIn()) {
-        const p = await spin("ensureSugang", () => api.ensureSugang());
-        if (p.ok) {
-          api.student = p.data.student;
-          printKv([
-            ["이름", p.data.student?.studentName || "-"],
-            ["학번", p.data.student?.studentId || "-"],
-            ["학과", p.data.student?.deptName || "-"]
-          ]);
-        }
+      if (!envSid || !envPw) {
+        console.log(c("  .env 에 SEOWON_SID 와 SEOWON_PW 를 넣어 주세요.", A.yellow));
+        await waitEnter(ctx.rl);
+        continue;
       }
-      await waitEnter(ctx.rl);
+      ctx.opt.sid = envSid;
+      ctx.opt.pw = envPw;
+      if (await ensureLogin(ctx, false)) return;
       continue;
     }
     if (a === "3") {
@@ -632,6 +657,7 @@ function flattenSnapshot(snap) {
   return { courses, asg, les, dueA, dueL, semester: snap?.semester || "-" };
 }
 
+/** 지금 제출 기간의 미제출 과제와, 지금 학습 기간의 미학습 차시. */
 async function pageTodo(ctx) {
   beginScreen("🔥 지금 할 것", A.red);
     const snap = await spin("fetchSnapshot", () => ctx.api.fetchSnapshot({ refresh: true, timeoutMs: 90000 }));
@@ -702,6 +728,7 @@ function asgDue(r) {
   return asgStatusLabel(r) === "미제출" && !/마감|종료|지남/.test(String(r.status || "") + String(r.period || ""));
 }
 
+/** 과제 목록. 미제출은 기간과 관계없이 제출 파일이 없는 과제다. */
 async function pageAsg(ctx) {
   while (true) {
     beginScreen("📝 과제", A.blue);
@@ -743,6 +770,7 @@ async function pageAsg(ctx) {
   }
 }
 
+/** 공지 목록과 본문. */
 async function pageNtc(ctx) {
   beginScreen("📢 공지", A.blue);
   const list = await spin("fetchNotices", () => ctx.api.fetchNotices({ refresh: true, timeoutMs: 60000 }));
@@ -780,6 +808,7 @@ async function pageNtc(ctx) {
   }
 }
 
+/** 자료 목록과 첨부. 저장 위치는 고른 폴더다. */
 async function pageMat(ctx) {
   beginScreen("📁 자료", A.yellow);
   const list = await spin("fetchMaterials", () => ctx.api.fetchMaterials({ refresh: true, timeoutMs: 60000 }));
@@ -816,12 +845,13 @@ async function pageMat(ctx) {
   }
 }
 
+/** 이러닝. 전체 조회는 기간이 지난 차시도 포함하고, 들을 차시만 지금 기간이다. */
 async function pageLes(ctx) {
   while (true) {
     beginScreen("💻 이러닝", A.blue);
-    console.log(c("  전체 조회는 수강·다운로드, 학습률은 차시별 퍼센트만 다릅니다.", A.dim));
+    console.log(c("  전체 조회는 수강 기간이 지난 차시도 포함합니다. 학습률은 그 차시의 퍼센트만 다릅니다.", A.dim));
     const a = await choose(ctx, "이러닝", [
-      ["1", "전체 조회 · 모든 차시, 수강·다운로드", "1"],
+      ["1", "전체 조회 · 기간 지난 차시 포함", "1"],
       ["2", "들을 차시 · 지금 기간의 미학습만", "2"],
       ["3", "학습률 · 차시마다 퍼센트 조회", "3"]
     ]);
@@ -846,18 +876,16 @@ async function pageLes(ctx) {
       if (a === "3") {
         let failed = 0;
         let firstError = "";
-        for (let i = 0; i < rows.length; i++) {
-          const row = rows[i];
-          const p = await spin(`학습률 ${i + 1}/${rows.length}`, () =>
-            ctx.api.fetchProgress({ crsCreCd: row.crsCreCd, lessonCntsId: row.lessonCntsId, timeoutMs: 60000 })
-          );
+        console.log(c(`  학습률 ${rows.length}건 · 동시에 ${Math.min(FETCH_LIMIT, rows.length)}개까지`, A.dim));
+        await mapLimit(rows, FETCH_LIMIT, async (row) => {
+          const p = await ctx.api.fetchProgress({ crsCreCd: row.crsCreCd, lessonCntsId: row.lessonCntsId, timeoutMs: 60000 });
           if (p.ok) row.progressPercent = p.data.progressPercent;
           else {
             failed += 1;
             row.progressError = failLine(p);
             if (!firstError) firstError = row.progressError;
           }
-        }
+        });
         if (failed) console.log(c(`  학습률 실패 ${failed}/${rows.length} · ${firstError}`, A.red));
       }
       while (true) {
@@ -867,7 +895,7 @@ async function pageLes(ctx) {
       const columns = [
         { key: "title", head: "제목", width: 28 },
         { key: "courseTitle", head: "과목", width: 16 },
-        { key: "need", head: "상태", width: 8, get: (r) => (r.needsWatch ? "미학습" : "완료"), paint: (t, r) => (r.needsWatch ? c(t, A.yellow, A.bold) : c(t, A.green, A.bold)) }
+        { key: "need", head: "상태", width: 8, get: lessonRowStatus, paint: lessonRowPaint }
       ];
       if (a === "3") {
         columns.push({
@@ -905,11 +933,11 @@ async function pageLes(ctx) {
       ]);
       if (!act || act === "b") continue;
       if (act === "s") {
-        const opened = openLessonSite(picked);
+        const opened = openCampusMain();
         if (!opened.ok) console.log(c(`  ${opened.error}`, A.red));
         else {
-          console.log(c("  브라우저에서 이캠퍼스 강의 창을 열었습니다.", A.green));
-          console.log(c("  브라우저에 학교 로그인이 되어 있어야 강의가 열립니다.", A.dim));
+          console.log(c("  브라우저에서 이캠퍼스 메인을 열었습니다.", A.green));
+          console.log(c("  브라우저에 학교 로그인이 되어 있어야 메인으로 들어갑니다.", A.dim));
         }
         await waitEnter(ctx.rl);
         continue;
@@ -919,6 +947,7 @@ async function pageLes(ctx) {
   }
 }
 
+/** 수강 과목과 시간. 그림은 PNG 로만 저장한다. */
 async function pageTt(ctx) {
   beginScreen("🗓️ 시간표", A.blue);
   const t = await spin("fetchTimetable", () => ctx.api.fetchTimetable({ refresh: true, timeoutMs: 60000 }));
@@ -938,23 +967,59 @@ async function pageTt(ctx) {
       ["라벨", tt.label || "-"],
       ["과목", String(tt.courseCount || tt.subjects?.length || 0)],
       ["학점", String(tt.totalCredits || 0)],
-      ["충돌", String(tt.conflictCount || 0)],
-      ["HTML", tt.html ? c("있음", A.green) : c("없음", A.gray)],
-      ["SVG", tt.svg ? c("있음", A.green) : c("없음", A.gray)]
+      ["충돌", String(tt.conflictCount || 0)]
     ]);
-    const picked = await pickFromList(ctx.rl, "수강 과목", tt.subjects || [], (it) => it.subjtNm || it.title || it.courseTitle || "과목", [
-      { key: "name", head: "과목", width: 24, get: (it) => it.subjtNm || it.title || it.courseTitle || "과목" },
-      { key: "time", head: "시간", width: 20, get: (it) => it.tmRms || it.time || "" }
+    const a = await choose(ctx, "시간표", [
+      ["1", "과목 목록", "1"],
+      ["2", "PNG 저장", "png"]
     ]);
-    if (!picked) return;
-    const dl = await choose(ctx, "시간표 저장", [
-      ["1", "그림 SVG 저장", "svg"],
-      ["2", "HTML 저장", "html"],
-      ["b", "뒤로", "b"]
-    ]);
-    if (!dl || dl === "b") continue;
-    if (dl === "svg" || dl === "html") await actions.saveTimetable(ctx, dl);
+    if (!a) return;
+    if (a === "png") {
+      await actions.saveTimetable(ctx);
+      await waitEnter(ctx.rl);
+      continue;
+    }
+    while (true) {
+      beginScreen("🗓️ 시간표", A.blue);
+      const picked = await pickFromList(ctx.rl, "수강 과목", tt.subjects || [], (it) => `${it.subjtNm || it.title || ""} ${subjectTimeText(it)}`, [
+        { key: "name", head: "과목", width: 24, get: (it) => it.subjtNm || it.title || it.courseTitle || "과목" },
+        { key: "time", head: "시간", width: 28, get: subjectTimeText }
+      ]);
+      if (!picked) break;
+      beginScreen("🗓️ 시간표", A.blue);
+      printKv([
+        ["과목", picked.subjtNm || picked.title || picked.courseTitle || "과목"],
+        ["시간", subjectTimeText(picked)],
+        ["교수", picked.chrgInstrEmpnm || "-"],
+        ["학점", picked.cmpsjCdt || "-"],
+        ["구분", picked.kind || "-"]
+      ]);
+      await waitEnter(ctx.rl, "Enter 목록으로 · Esc 이전");
+    }
   }
+}
+
+/** 과목의 시간표 문자열. 없으면 요일·교시 슬롯을 이어 붙인다. */
+function subjectTimeText(it) {
+  const raw = String(it?.timtbNm || it?.tmRms || it?.time || "").replace(/\s+/g, " ").trim();
+  if (raw) return raw;
+  const slots = Array.isArray(it?.slots) ? it.slots : [];
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  const groups = new Map();
+  for (const slot of slots) {
+    const day = days[Number(slot?.day)] || "";
+    const period = Number(slot?.period);
+    if (!day || !period) continue;
+    const list = groups.get(day) || [];
+    if (!list.includes(period)) list.push(period);
+    groups.set(day, list);
+  }
+  const parts = [];
+  for (const [day, periods] of groups) {
+    periods.sort((a, b) => a - b);
+    parts.push(`${day} ${periods.join(",")}`);
+  }
+  return parts.join(" · ") || "-";
 }
 
 function gradeNum(value) {
@@ -986,6 +1051,7 @@ function letterPaint(text, row) {
   return c(text, A.bold, color);
 }
 
+/** 이번 학기 e-campus 성적과 지난 학기 ERP 등급. */
 async function pageScore(ctx) {
   while (true) {
     beginScreen("📊 성적", A.green);
@@ -1089,6 +1155,7 @@ async function pageScore(ctx) {
   }
 }
 
+/** 과목별 미제출 과제와 기간 안 미완료 차시. 0이 아니면 밝은 빨강. */
 async function pageSum(ctx) {
   while (true) {
     beginScreen("📌 전체 현황", A.blue);
@@ -1132,6 +1199,7 @@ async function pageSum(ctx) {
   }
 }
 
+/** 테마 색 목록. */
 async function pageTheme(ctx) {
   doClear();
   const keys = "123456789abcdefghijklmnopqrstuvwxyz";
@@ -1177,6 +1245,7 @@ async function pageTheme(ctx) {
   await waitEnter(ctx.rl);
 }
 
+/** 테마, 화면 지우기, 캐시 비우기. */
 async function pageCfg(ctx) {
   while (true) {
     const cur = THEMES[theme.id] || THEMES.seowon;
@@ -1230,45 +1299,80 @@ async function pageCfg(ctx) {
   }
 }
 
+/** 패키지, 언어, 로그인 상태. */
 async function pageInfo(ctx) {
   beginScreen("🔬 프로그램 정보", A.blue);
   const me = ctx.api.loggedIn() ? await ctx.api.currentStudent() : null;
   printKv([
     ["패키지", `${PKG.name} v${PKG.version}`],
+    ["언어", "TypeScript · Node.js 20"],
+    ["화면", "자체 터미널 메뉴 · 웹 프레임워크 없음"],
+    ["통신", "axios로 학교 페이지 · cheerio로 HTML"],
     ["연결", "학교 서버 직접 · 내부 함수"],
     ["로그인", me?.data?.loggedIn ? c(me.data.student?.studentName || "됨", A.green) : c("전", A.gray)]
   ]);
+  console.log(c("  TypeScript로 작성한 Node.js 프로그램입니다. 화면은 별도 UI 프레임워크 없이 이 터미널 메뉴로 그립니다.", A.dim));
   console.log(c("  확정 수강 목록·과제·이러닝·시간표·성적을 이 프로세스에서 조회합니다.", A.dim));
   await waitEnter(ctx.rl, "Enter 메뉴로 · Esc 이전");
 }
 
 const SURVEY_FUNCTIONS = [
-  "currentStudent",
-  "ensureSugang",
-  "clearCache",
-  "fetchSnapshot",
-  "listAssignments",
-  "fetchAssignmentDetail",
-  "fetchNotices",
-  "fetchNoticeDetail",
-  "fetchMaterials",
-  "fetchMaterialAttachments",
-  "listLessons",
-  "fetchProgress",
-  "fetchTimetable",
-  "fetchScores",
-  "fetchErpGrades",
-  "saveTimetableFile",
-  "downloadCampusFile",
-  "downloadLessonVideo",
-  "submitAssignment",
-  "logout"
+  ["currentStudent", "지금 로그인된 학생인지 확인"],
+  ["ensureSugang", "시간표 시스템에 맞추고 이름·학과를 가져옴"],
+  ["clearCache", "메모리에 둔 과제·공지·자료·이러닝·성적 캐시를 비움"],
+  ["fetchSnapshot", "과목별 과제와 이러닝을 한 번에 조회"],
+  ["listAssignments", "과제 목록. 전체·교과·지금 할 일·미제출·제출완료"],
+  ["fetchAssignmentDetail", "과제 하나의 본문과 제출 파일"],
+  ["fetchNotices", "공지 목록"],
+  ["fetchNoticeDetail", "공지 하나의 본문"],
+  ["fetchMaterials", "강의실 자료 목록"],
+  ["fetchMaterialAttachments", "자료 하나의 첨부 파일"],
+  ["listLessons", "이러닝 차시. all은 전체, watch는 지금 들을 차시"],
+  ["fetchProgress", "차시 하나의 학습률. 시청 기록은 보내지 않음"],
+  ["fetchTimetable", "확정 수강 시간표"],
+  ["fetchScores", "이번 학기 e-campus 성적"],
+  ["fetchErpGrades", "지난 학기 ERP 성적. 학기를 고르면 과목 등급"],
+  ["saveTimetableFile", "시간표 PNG를 고른 폴더에 저장. --write"],
+  ["downloadCampusFile", "자료 첨부 하나를 고른 폴더에 저장. --write"],
+  ["downloadLessonVideo", "이러닝 영상 하나를 저장. --write --heavy"],
+  ["submitAssignment", "과제 제출. 조사에서는 호출하지 않음"],
+  ["logout", "세션 종료. 조사에서는 호출하지 않음"]
 ];
 
+const ASSIGNMENT_FILTER_ABOUT = {
+  all: "전체 과제",
+  curricular: "교과 과제",
+  due: "지금 제출 기간의 미제출 과제",
+  missing: "제출하지 않은 과제",
+  submitted: "제출한 과제"
+};
+
+/** 같은 함수를 여러 번 부를 때, 그 호출이 고른 대상을 한 줄로 적는다. */
+function surveyAbout(name) {
+  const text = String(name || "");
+  const listFilter = text.match(/^listAssignments\(([^)]+)\)$/);
+  if (listFilter) return `과제 목록 · ${ASSIGNMENT_FILTER_ABOUT[listFilter[1]] || listFilter[1]}`;
+  if (text.startsWith("listLessons(watch")) return "지금 학습 기간의 미학습·학습중 차시";
+  if (text.startsWith("listLessons(")) return "등록된 이러닝 차시 전체";
+  if (text.startsWith("fetchErpGrades(")) return "고른 학기의 과목 등급·평점";
+  if (text.startsWith("fetchAssignmentDetail")) return "과제 하나의 본문과 제출 파일";
+  if (text.startsWith("fetchNoticeDetail")) return "공지 하나의 본문";
+  if (text.startsWith("fetchMaterialAttachments")) return "자료 하나의 첨부 파일";
+  const base = text.split(/[ (]/)[0];
+  const hit = SURVEY_FUNCTIONS.find((row) => row[0] === base);
+  return hit ? hit[1] : "";
+}
+
+/** 함수 전수 조사 확인 화면. 각 함수가 하는 일을 먼저 보여 준다. */
 async function pageTest(ctx) {
   beginScreen("🧪 함수 전수 조사", A.yellow);
   console.log(c("  Campus 함수를 순서대로 부릅니다. 과제 제출과 로그아웃은 호출하지 않습니다.", A.dim));
   console.log(c(`  상세 ${ctx.opt.heavy ? "전체" : `${ctx.opt.depth || 3}건`} · 파일 저장 ${ctx.opt.write ? "켬" : "끔"}`, A.gray));
+  console.log("");
+  for (const [name, about] of SURVEY_FUNCTIONS) {
+    console.log(`  ${c(pad(name, 26), A.bold)}  ${c(about, A.dim)}`);
+  }
+  console.log("");
   const ok = await confirm(ctx.rl, "로그인된 세션으로 함수 전수 조사를 시작할까요?", {
     affirmative: "시작",
     negative: "취소"
@@ -1285,17 +1389,22 @@ async function pageTest(ctx) {
   await waitEnter(ctx.rl);
 }
 
+/** 조회 함수만 순서대로 실행한다. 과제 제출과 로그아웃은 부르지 않는다. */
 async function runReadSweep(ctx) {
   const { api, opt } = ctx;
   const depth = opt.heavy ? 1000 : Math.max(1, Number(opt.depth) || 3);
   const skips = [];
   const log = (name, res) => {
     const mark = res?.ok ? c("OK", A.green) : c("FAIL", A.red);
-    console.log(`  ${mark}  ${c(`${res?.ms || 0}ms`.padStart(7), A.dim)}  ${name}`);
+    const about = surveyAbout(name);
+    console.log(`  ${mark}  ${c(`${res?.ms || 0}ms`.padStart(7), A.dim)}  ${c(name, A.bold)}`);
+    if (about) console.log(c(`           ${about}`, A.dim));
   };
   const skip = (name, why) => {
     skips.push({ name, why });
-    console.log(`  ${c("SKIP", A.yellow)}  ${"".padStart(7)}  ${name}  ${c(why, A.dim)}`);
+    const about = surveyAbout(name);
+    console.log(`  ${c("SKIP", A.yellow)}  ${"".padStart(7)}  ${c(name, A.bold)}  ${c(why, A.dim)}`);
+    if (about) console.log(c(`           ${about}`, A.dim));
   };
   const take = (rows) => (rows || []).slice(0, depth);
 
@@ -1371,8 +1480,8 @@ async function runReadSweep(ctx) {
   } else skip("fetchErpGrades(term)", "학기 행이 없습니다");
 
   if (opt.write && timetable.ok) {
-    const dest = await actions.chooseSavePath(ctx, "survey-timetable.svg");
-    if (dest) log("saveTimetableFile", await api.saveTimetableFile({ kind: "svg", savePath: dest, timeoutMs: 30000 }));
+    const dest = await actions.chooseSavePath(ctx, "survey-timetable.png");
+    if (dest) log("saveTimetableFile", await api.saveTimetableFile({ savePath: dest, timeoutMs: 30000 }));
     else skip("saveTimetableFile", "저장 위치를 고르지 않았습니다");
   } else skip("saveTimetableFile", opt.write ? "시간표가 없습니다" : "--write 일 때만 저장합니다");
 
@@ -1421,6 +1530,7 @@ const PAGES = {
   test: pageTest
 };
 
+/** 사이드바 메뉴를 반복한다. Esc 나 q 면 끝난다. */
 async function tuiLoop(ctx) {
   let waveOff = 0;
   while (true) {
@@ -1481,6 +1591,7 @@ function openReadline() {
   return rl;
 }
 
+/** 인자 해석 후 메뉴 또는 함수 전수 조사로 들어간다. */
 async function main() {
   let opt;
   try {
@@ -1494,7 +1605,10 @@ async function main() {
     console.log(helpText());
     console.log(c("\n사이드바: login todo asg ntc mat les tt score sum cfg info", A.gray));
     console.log(c("도구: test  함수 전수 조사", A.gray));
-    console.log(c(`조사 함수: ${SURVEY_FUNCTIONS.join(" ")}`, A.gray));
+    console.log(c("\n조사 함수", A.bold));
+    for (const [name, about] of SURVEY_FUNCTIONS) {
+      console.log(`  ${name.padEnd(26)}  ${about}`);
+    }
     return;
   }
 

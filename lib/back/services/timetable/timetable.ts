@@ -6,6 +6,7 @@
  * API 시간표 조회 폴백으로 바구니 목록을 읽는다.
  * 그림은 엔진 SVG 렌더를 재사용하고, 실패하면 격자 SVG 로 대체한다.
  */
+import { Resvg } from "@resvg/resvg-js";
 import { renderHopeBasketTimetableSvg } from "../../engine/index.js";
 import { ensureSugang } from "../ecampus/login.js";
 import type { WebSession } from "../../types/session.js";
@@ -327,4 +328,15 @@ export async function fetchTimetable(sess: WebSession): Promise<WebTimetable> {
   }
 
   throw new Error("시간표를 열 세션이 없습니다. 다시 로그인하세요.");
+}
+
+/** 시간표 SVG 를 PNG 로 바꾼다. 화면 저장은 이 그림만 쓴다. */
+export function renderTimetablePng(svg: string): Buffer {
+  const text = String(svg || "").trim();
+  if (!text.includes("<svg")) throw new Error("시간표 그림을 만들지 못했습니다.");
+  const resvg = new Resvg(text, {
+    fitTo: { mode: "width", value: 1400 },
+    font: { loadSystemFonts: true, defaultFontFamily: "Malgun Gothic" }
+  });
+  return Buffer.from(resvg.render().asPng());
 }

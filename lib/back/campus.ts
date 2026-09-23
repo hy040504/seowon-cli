@@ -21,7 +21,7 @@ import { ensureErp, ensureSugang as openSugang, liveLogin as openEcampus } from 
 import { fetchScores as readScores } from "./services/ecampus/score.js";
 import { fetchGradeOverview, fetchGradeTermDetails } from "./services/erp/grades.js";
 import { applyEmptyFileAssignments, assignmentEffectivelyUnsubmitted, lessonWatchFacts, refreshAssignmentDue } from "./filters.js";
-import { fetchTimetable as readTimetable } from "./services/timetable/timetable.js";
+import { fetchTimetable as readTimetable, renderTimetablePng } from "./services/timetable/timetable.js";
 import type { EcampusClient } from "./engine/index.js";
 import type { AssignmentListRow, LessonListRow, Snapshot } from "./types/snapshot.js";
 import type { WebSession } from "./types/session.js";
@@ -404,15 +404,15 @@ export class Campus {
     }, input.timeoutMs);
   }
 
-  async saveTimetableFile(input: { kind: "svg" | "html"; savePath: string } & Timed): Promise<CallResult<{ saved: string; bytes: number }>> {
+  async saveTimetableFile(input: { savePath: string } & Timed): Promise<CallResult<{ saved: string; bytes: number }>> {
     return this.run(async () => {
       const sess = this.requireSession();
+      if (!input.savePath) throw new Error("저장 경로가 없습니다.");
       if (!sess.timetable) sess.timetable = await readTimetable(sess);
-      const text = input.kind === "svg" ? sess.timetable?.svg || "" : sess.timetable?.html || "";
-      if (!text) throw new Error("시간표 그림을 만들지 못했습니다.");
+      const png = renderTimetablePng(sess.timetable?.svg || "");
       fs.mkdirSync(path.dirname(input.savePath), { recursive: true });
-      fs.writeFileSync(input.savePath, text);
-      return { saved: input.savePath, bytes: Buffer.byteLength(text) };
+      fs.writeFileSync(input.savePath, png);
+      return { saved: input.savePath, bytes: png.length };
     }, input.timeoutMs);
   }
 
