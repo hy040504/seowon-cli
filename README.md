@@ -7,6 +7,14 @@
 
 > 서원대학교 공식 SDK가 아닙니다. 계정·세션·다운로드 파일은 공개 저장소에 올리지 마세요.
 
+## 프로젝트 위치
+
+이 저장소는 [seowon-client-web](https://github.com/hy040504/seowon-client-web)을 개발하고 확장하기 전에 학교 연동과 기능 흐름을 검증하는 **MVP 성격의 터미널 클라이언트**입니다. 먼저 CLI에서 실제 e-campus·시간표·ERP 응답과 예외 상황을 확인한 뒤, 여러 학생이 브라우저에서 사용하는 웹 기능으로 확장합니다.
+
+- `seowon-cli`: 단일 사용자·터미널 중심의 연동 검증, 기능 실험, 문제 사례 기록
+- `seowon-client-web`: 검증된 기능을 여러 사용자와 웹 화면에 맞게 확장하는 제품 저장소
+- 이 저장소의 CLI 화면이나 내부 호출 구조가 웹 프로젝트의 최종 UI·API 구조를 그대로 의미하지는 않습니다.
+
 ---
 
 ## 🧠 현재 구성
@@ -390,8 +398,8 @@ npm run api-cli
 
 | 저장소 | 역할 |
 | :--- | :--- |
-| [seowon-cli](https://github.com/hy040504/seowon-cli) | 이 저장소. 한 대에서 조회·제출 |
-| [seowon-client-web](https://github.com/hy040504/seowon-client-web) | 여러 학생이 브라우저로 보는 웹 |
+| [seowon-cli](https://github.com/hy040504/seowon-cli) | 개발·확장 전 MVP. 한 대에서 학교 연동과 기능을 검증 |
+| [seowon-client-web](https://github.com/hy040504/seowon-client-web) | MVP에서 검증한 기능을 여러 학생용 브라우저 서비스로 확장 |
 | [seowon-client-api](https://github.com/hy040504/seowon-client-api) | 학교 연동 원본. 이 CLI 실행에는 필요 없음 |
 
 ---
