@@ -341,7 +341,7 @@ function collectHtmlPercents(html: string, found: number[]): void {
     const n = Number(match[1]);
     if (Number.isFinite(n)) found.push(clampPercent(n));
   }
-  for (const match of html.matchAll(/(?:data-(?:progress|prgr-ratio|progress-ratio)|aria-valuenow|value)\s*=\s*["']?(\d{1,3}(?:\.\d+)?)\s*%?["']?/gi)) {
+  for (const match of html.matchAll(/(?:data-(?:progress|prgr-ratio|progress-ratio)|aria-valuenow)\s*=\s*["']?(\d{1,3}(?:\.\d+)?)\s*%?["']?/gi)) {
     const n = Number(match[1]);
     if (Number.isFinite(n)) found.push(clampPercent(n));
   }

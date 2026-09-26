@@ -27,6 +27,7 @@ export interface EcampusLessonItem {
   durationText?: string; // 재생 시간 텍스트
   durationSeconds?: number; // 재생 시간(초)
   attendanceStatus?: string; // 출결 상태
+  progressPercent?: number | null; // 목록 카드에서 읽은 학습률(%)
   lessonStartDttm?: string; // 강의 시작 일시
   viewRequest: EcampusLessonPostRequest; // 상세 진입 요청
   studyWindowRequest: EcampusLessonPostRequest; // 시청 창 요청

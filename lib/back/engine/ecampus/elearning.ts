@@ -34,6 +34,7 @@ export type {
 
 import * as cheerio from "cheerio";
 import { absoluteUrl, escapeRegExp, normalizeSpace, parseFunctionArguments } from "./utils.js";
+import { findProgressPercent } from "../../filters.js";
 
 import util from "node:util";
 import fs from "node:fs";
@@ -397,6 +398,7 @@ export function parseEcampusLessonSchedulesHtml(
         durationText,
         durationSeconds: parseDurationSeconds(durationText),
         attendanceStatus: extractLabeledText(text, "출결상태"),
+        progressPercent: findProgressPercent(card.html() || ""),
         viewRequest: createLessonViewRequest(baseUrl, crsCreCd, lessonScheduleId, lessonCntsId),
         studyWindowRequest: createLessonStudyWindowRequest(baseUrl, crsCreCd, lessonCntsId)
       };
@@ -454,6 +456,7 @@ function parseLooseLessonCards(
       durationText,
       durationSeconds: parseDurationSeconds(durationText),
       attendanceStatus: extractAnyLabeledText(text, ["출결상태"]),
+      progressPercent: findProgressPercent(card.html() || ""),
       viewRequest: createLessonViewRequest(baseUrl, crsCreCd, lessonScheduleId, lessonCntsId),
       studyWindowRequest: createLessonStudyWindowRequest(baseUrl, crsCreCd, lessonCntsId)
     });
