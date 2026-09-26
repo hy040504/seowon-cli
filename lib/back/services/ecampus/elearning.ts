@@ -59,38 +59,56 @@ export async function fetchProgress(
   lessonCntsId: string,
   studentId: string
 ): Promise<number> {
-  const form = await client.readLessonFormFields(crsCreCd);
+  // 강의실에 따라 목록 폼이 로그인 화면/빈 조각으로 반환되는 경우가 있다.
+  // 이때 폼 조회 자체를 실패로 처리하면 학습률의 대체 조회도 못 하므로
+  // 기본 식별자와 진도 방식으로 계속 시도한다.
+  let form: { stdNo: string; prgrRatioTypeCd: string; referer: string } = {
+    stdNo: "",
+    prgrRatioTypeCd: "",
+    referer: new URL(`/lesson/lessonLect/Form/lessonListForm?crsCreCd=${encodeURIComponent(crsCreCd)}`, client.baseUrl).toString()
+  };
+  try {
+    form = await client.readLessonFormFields(crsCreCd);
+  } catch {
+    // 아래의 표준 진도 방식 순회에서 계속한다.
+  }
+
   const stdNo = form.stdNo || `${crsCreCd}_${studentId}`;
   const types = [...new Set([form.prgrRatioTypeCd, "STUDY_TOTAL_TM", "WEEK", "PAGE"].filter(Boolean))];
   const preferred = types[0] || "";
   let best: number | null = null;
   for (const prgrRatioTypeCd of types) {
-    const response = await client.http.post(
-      "/lesson/lessonLect/viewLessonStudyDetail",
-      new URLSearchParams({
-        lessonCntsId,
-        prgrRatioTypeCd,
-        stdNo,
-        crsCreCd,
-        pageIndex: "1",
-        listScale: "10"
-      }),
-      {
-        headers: {
-          ...COMMON_AJAX_HEADERS,
-          Accept: "text/html, */*; q=0.01",
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          Origin: client.baseUrl.replace(/\/$/, ""),
-          Referer: form.referer
-        },
-        responseType: "text",
-        timeout: 60000
-      }
-    );
-    const pct = findProgressPercent(response.data);
-    if (pct == null) continue;
-    if (best == null || pct > best) best = pct;
-    if (prgrRatioTypeCd === preferred && pct > 0) break;
+    try {
+      const response = await client.http.post(
+        "/lesson/lessonLect/viewLessonStudyDetail",
+        new URLSearchParams({
+          lessonCntsId,
+          prgrRatioTypeCd,
+          stdNo,
+          crsCreCd,
+          pageIndex: "1",
+          // 이력 행이 여러 개일 수 있으므로 첫 10개에서 끊지 않는다.
+          listScale: "100"
+        }),
+        {
+          headers: {
+            ...COMMON_AJAX_HEADERS,
+            Accept: "text/html, application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            Origin: client.baseUrl.replace(/\/$/, ""),
+            Referer: form.referer
+          },
+          responseType: "text",
+          timeout: 60000
+        }
+      );
+      const pct = findProgressPercent(response.data);
+      if (pct == null) continue;
+      if (best == null || pct > best) best = pct;
+      if (prgrRatioTypeCd === preferred && pct > 0) break;
+    } catch {
+      // 서버가 특정 진도 방식만 거부하는 과목이 있어 다음 방식으로 폴백한다.
+    }
   }
   if (best == null) {
     const fallback = await client.viewLessonStudyDetail(lessonCntsId, crsCreCd);

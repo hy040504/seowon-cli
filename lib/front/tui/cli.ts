@@ -393,7 +393,7 @@ const SIDEBAR = [
   { key: "sum", num: "9", emoji: "📌", label: "전체 현황", need: true, group: "사이드바" },
   { key: "cfg", num: "C", emoji: "⚙️", label: "설정", need: true, group: "사이드바" },
   { key: "info", num: "I", emoji: "🔬", label: "프로그램 정보", need: false, group: "사이드바" },
-  { key: "test", num: "T", emoji: "🧪", label: "함수 전수 조사", need: true, group: "도구" },
+  { key: "test", num: "T", emoji: "🧪", label: "함수 전수 조사 (Dev)", need: true, group: "도구" },
   { key: "exit", num: "0", emoji: "🚪", label: "종료", need: false, group: "도구" }
 ];
 
@@ -1365,7 +1365,7 @@ function surveyAbout(name) {
 
 /** 함수 전수 조사 확인 화면. 각 함수가 하는 일을 먼저 보여 준다. */
 async function pageTest(ctx) {
-  beginScreen("🧪 함수 전수 조사", A.yellow);
+  beginScreen("🧪 함수 전수 조사 (Dev)", A.yellow);
   console.log(c("  Campus 함수를 순서대로 부릅니다. 과제 제출과 로그아웃은 호출하지 않습니다.", A.dim));
   console.log(c(`  상세 ${ctx.opt.heavy ? "전체" : `${ctx.opt.depth || 3}건`} · 파일 저장 ${ctx.opt.write ? "켬" : "끔"}`, A.gray));
   console.log("");
@@ -1625,7 +1625,7 @@ async function main() {
   if (opt.help || opt.list) {
     console.log(helpText());
     console.log(c("\n사이드바: login todo asg ntc mat les tt score sum cfg info", A.gray));
-    console.log(c("도구: test  함수 전수 조사", A.gray));
+    console.log(c("도구: test  함수 전수 조사 (Dev)", A.gray));
     console.log(c("\n조사 함수", A.bold));
     for (const [name, about] of SURVEY_FUNCTIONS) {
       console.log(`  ${name.padEnd(26)}  ${about}`);
