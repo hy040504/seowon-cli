@@ -72,29 +72,28 @@ export async function fetchSnapshot(
   const now = new Date();
   const list = await client.getCourseList();
   const courses = await mapLimit(list, FETCH_LIMIT, async (c) => {
-    let assignments: EcampusClassroomItem[] = [];
-    let lessons: Array<{
+    // 과제와 차시는 서로 의존하지 않으므로 한 과목 안에서도 동시에 조회한다.
+    const [assignmentsResult, lessonsResult] = await Promise.allSettled([
+      client.getAssignmentList({
+        crsCreCd: c.crsCreCd,
+        userNo: student.userNo,
+        userName: student.studentName || "",
+        listScale: LIST_SCALE
+      }),
+      client.getElearningLessonList({ crsCreCd: c.crsCreCd })
+    ]);
+    const assignments = assignmentsResult.status === "fulfilled" ? assignmentsResult.value : [];
+    const lessons = lessonsResult.status === "fulfilled" ? lessonsResult.value : [];
+    /* 응답 타입은 엔진에서 제공하지만, 일부 학교 응답에는 확장 필드가 추가된다. */
+    const lessonRows: Array<{
       lessonCntsId?: string;
       scheduleTitle?: string;
       title?: string;
       period?: string;
       attendanceStatus?: string;
-    }> = [];
-    try {
-      assignments = await client.getAssignmentList({
-        crsCreCd: c.crsCreCd,
-        userNo: student.userNo,
-        userName: student.studentName || "",
-        listScale: LIST_SCALE
-      });
-    } catch {
-      assignments = [];
-    }
-    try {
-      lessons = await client.getElearningLessonList({ crsCreCd: c.crsCreCd });
-    } catch {
-      lessons = [];
-    }
+      durationSeconds?: number;
+      progressPercent?: number | null;
+    }> = lessons;
     const course: SnapshotCourse & { _rawAssignments: EcampusClassroomItem[] } = {
       courseTitle: c.title || (c as any).courseTitle || "",
       crsCreCd: c.crsCreCd,
@@ -114,7 +113,7 @@ export async function fetchSnapshot(
           now
         )
       ),
-      elearning: lessons.map((l) =>
+      elearning: lessonRows.map((l) =>
         markLesson(
           {
             id: String(l.lessonCntsId || ""),
@@ -219,6 +218,13 @@ export async function attachSubmittedFilesToRows(
 ): Promise<void> {
   const pending = rows.filter((r) => !r.submittedFilesLoaded);
   if (!pending.length) return;
+  // 각 행을 갱신할 때마다 courses 전체를 순회하지 않도록 한 번만 인덱싱한다.
+  const assignmentsByKey = new Map<string, Snapshot["courses"][number]["assignments"][number]>();
+  for (const course of snapshot?.courses || []) {
+    for (const assignment of course.assignments) {
+      assignmentsByKey.set(`${course.crsCreCd}::${assignment.id}`, assignment);
+    }
+  }
   await mapLimit(pending, FETCH_LIMIT, async (row) => {
     const raw = rawAssignments.get(`${row.crsCreCd}::${row.id}`);
     try {
@@ -238,18 +244,13 @@ export async function attachSubmittedFilesToRows(
     }
     row.submittedFilesLoaded = true;
     refreshAssignmentDue(row);
-    if (!snapshot) return;
-    for (const c of snapshot.courses) {
-      for (const a of c.assignments) {
-        if (a.id !== row.id) continue;
-        if ((a.crsCreCd || c.crsCreCd) !== row.crsCreCd) continue;
-        a.submittedAttachments = row.submittedAttachments;
-        a.hasSubmittedFile = row.hasSubmittedFile;
-        a.submittedFilesLoaded = true;
-        a.status = row.status;
-        a.dueNow = row.dueNow;
-      }
-    }
+    const assignment = assignmentsByKey.get(`${row.crsCreCd}::${row.id}`);
+    if (!assignment) return;
+    assignment.submittedAttachments = row.submittedAttachments;
+    assignment.hasSubmittedFile = row.hasSubmittedFile;
+    assignment.submittedFilesLoaded = true;
+    assignment.status = row.status;
+    assignment.dueNow = row.dueNow;
   });
   if (snapshot) snapshot.summary = buildSummary(snapshot.courses);
 }

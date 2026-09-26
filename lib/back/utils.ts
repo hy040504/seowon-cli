@@ -48,7 +48,9 @@ export async function mapLimit<T, R>(
 ): Promise<R[]> {
   const out = new Array<R>(items.length);
   let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length || 1) }, async () => {
+  // 호출부의 설정값이 0, NaN 또는 무한대여도 작업이 멈추지 않도록 정규화한다.
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 1;
+  const workers = Array.from({ length: Math.min(safeLimit, items.length || 1) }, async () => {
     while (next < items.length) {
       const i = next++;
       const item = items[i];

@@ -16,6 +16,7 @@ export interface LessonVideoStream {
   filename: string;
 }
 
+/** 학습 이력 표에서 인정 시간을 합산한다. 서버별 퍼센트 필드가 없을 때 사용한다. */
 function studySecondsFromHtml(raw: unknown): number | null {
   const html = String(raw ?? "");
   const rows = html.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
@@ -44,6 +45,7 @@ function studySecondsFromHtml(raw: unknown): number | null {
   return foundTable ? total : null;
 }
 
+/** 영상 길이와 인정 시간을 비교해 화면에 표시할 학습률을 계산한다. */
 function progressFromStudyHistory(raw: unknown, durationSeconds?: number): number | null {
   if (!durationSeconds || durationSeconds <= 0) return null;
   const seconds = studySecondsFromHtml(raw);
