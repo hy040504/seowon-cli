@@ -269,7 +269,23 @@ function percentToken(raw: unknown): number | null {
   return clampPercent(n);
 }
 
-const PROGRESS_KEYS = ["prgrRatio", "progressPercent", "studyPrgrRatio", "prgrRate"] as const;
+const PROGRESS_KEYS = [
+  "prgrRatio",
+  "progressPercent",
+  "studyPrgrRatio",
+  "prgrRate",
+  "progressRatio",
+  "progressRate",
+  "studyRate",
+  "studyProgress",
+  "completionRate",
+  "learnRate",
+  "prgrRt"
+] as const;
+
+function isProgressKey(key: string): boolean {
+  return /^(?:prgr|progress|study).*(?:ratio|rate|percent|per|value)$/i.test(key);
+}
 
 function cellText(html: string): string {
   return html
@@ -325,6 +341,14 @@ function collectHtmlPercents(html: string, found: number[]): void {
     const n = Number(match[1]);
     if (Number.isFinite(n)) found.push(clampPercent(n));
   }
+  for (const match of html.matchAll(/(?:data-(?:progress|prgr-ratio|progress-ratio)|aria-valuenow|value)\s*=\s*["']?(\d{1,3}(?:\.\d+)?)\s*%?["']?/gi)) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n)) found.push(clampPercent(n));
+  }
+  for (const match of text.matchAll(/(?:진도율|진도|학습률|진행률|prgrRatio|prgrRate|studyPrgrRatio|progressPercent|progressRate|progressRatio)\s*[:：=]?\s*(\d{1,3}(?:\.\d+)?)\s*%?/gi)) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n)) found.push(clampPercent(n));
+  }
 }
 
 /**
@@ -354,6 +378,15 @@ function collectProgressPercents(obj: unknown, found: number[], depth: number): 
         /* HTML 또는 일반 문자열 */
       }
     }
+    const jsonp = trimmed.match(/^[\w$]+\s*\(([\s\S]*)\)\s*;?$/);
+    if (jsonp?.[1]) {
+      try {
+        collectProgressPercents(JSON.parse(jsonp[1]), found, depth + 1);
+        return;
+      } catch {
+        /* JSONP or plain text */
+      }
+    }
     const token = percentToken(trimmed);
     if (token != null && trimmed.length <= 8) {
       found.push(token);
@@ -375,15 +408,17 @@ function collectProgressPercents(obj: unknown, found: number[], depth: number): 
   }
   const rec = obj as Record<string, unknown>;
   let keyed = false;
-  for (const key of PROGRESS_KEYS) {
-    if (!(key in rec) || rec[key] == null || rec[key] === "") continue;
+  for (const key of Object.keys(rec)) {
+    if (!(PROGRESS_KEYS as readonly string[]).includes(key) && !isProgressKey(key)) continue;
+    const value = rec[key];
+    if (value == null || value === "") continue;
     keyed = true;
-    const n = percentToken(rec[key]);
+    const n = percentToken(value);
     if (n != null) found.push(n);
-    else collectProgressPercents(rec[key], found, depth + 1);
+    else collectProgressPercents(value, found, depth + 1);
   }
   for (const [key, val] of Object.entries(rec)) {
-    if ((PROGRESS_KEYS as readonly string[]).includes(key)) continue;
+    if ((PROGRESS_KEYS as readonly string[]).includes(key) || isProgressKey(key)) continue;
     if (typeof val === "string" && /[<>]|진도율|prgrRatio/i.test(val)) collectHtmlPercents(val, found);
     else if (val && typeof val === "object") collectProgressPercents(val, found, depth + 1);
     else if (!keyed && typeof val === "number") continue;

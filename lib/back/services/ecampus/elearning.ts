@@ -73,7 +73,7 @@ export async function fetchProgress(
     // 아래의 표준 진도 방식 순회에서 계속한다.
   }
 
-  const stdNo = form.stdNo || `${crsCreCd}_${studentId}`;
+  const stdNo = form.stdNo || studentId || `${crsCreCd}_${studentId}`;
   const types = [...new Set([form.prgrRatioTypeCd, "STUDY_TOTAL_TM", "WEEK", "PAGE"].filter(Boolean))];
   const preferred = types[0] || "";
   let best: number | null = null;
