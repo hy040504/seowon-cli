@@ -22,6 +22,7 @@ export interface SnapshotLesson {
   title: string; // 강의 제목
   period: string; // 정규 학습 기간 원문
   attendanceStatus: string; // 출결 상태. 학교 화면의 강의보기·끝 X 는 제거
+  durationSeconds?: number; // 차시 영상 길이(초)
   progressPercent: number | null; // 학습률(%). 목록에 없어서 고른 차시만 채움
   lessonCntsId: string; // 강의 콘텐츠 ID
   crsCreCd: string; // 과목/강의실 코드

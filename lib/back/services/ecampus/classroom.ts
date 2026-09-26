@@ -126,6 +126,7 @@ export async function fetchSnapshot(
               .replace(/\s*[xX×]\s*$/g, "")
               .replace(/\s{2,}/g, " ")
               .trim(),
+            durationSeconds: Number((l as { durationSeconds?: number }).durationSeconds) || undefined,
             progressPercent: (l as { progressPercent?: number | null }).progressPercent ?? null,
             lessonCntsId: String(l.lessonCntsId || ""),
             crsCreCd: c.crsCreCd

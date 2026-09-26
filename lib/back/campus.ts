@@ -369,12 +369,13 @@ export class Campus {
       if (!crsCreCd || !lessonCntsId) throw new Error("차시 정보가 부족합니다.");
       const studentId = sess.student.studentId || sess.student.userNo || "";
       const snapshot = await this.ensureSnapshot(sess);
-      const listed = snapshot.courses
+      const lessonRow = snapshot.courses
         .find((course) => course.crsCreCd === crsCreCd)
-        ?.elearning.find((lesson) => lesson.lessonCntsId === lessonCntsId)?.progressPercent;
+        ?.elearning.find((lesson) => lesson.lessonCntsId === lessonCntsId);
+      const listed = lessonRow?.progressPercent;
       const pct = listed != null
         ? listed
-        : await readProgress(this.client(sess), crsCreCd, lessonCntsId, studentId);
+        : await readProgress(this.client(sess), crsCreCd, lessonCntsId, studentId, lessonRow?.durationSeconds);
       for (const course of snapshot.courses) {
         if (course.crsCreCd !== crsCreCd) continue;
         for (const lesson of course.elearning) {

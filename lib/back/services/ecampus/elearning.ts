@@ -16,6 +16,41 @@ export interface LessonVideoStream {
   filename: string;
 }
 
+function studySecondsFromHtml(raw: unknown): number | null {
+  const html = String(raw ?? "");
+  const rows = html.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
+  let timeIndex = -1;
+  let total = 0;
+  let foundTable = false;
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) =>
+      String(m[1] || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim()
+    );
+    if (!cells.length) continue;
+    const header = cells.findIndex((cell) => /학습\s*인정\s*시간|학습시간|study\s*time/i.test(cell));
+    if (header >= 0) {
+      timeIndex = header;
+      foundTable = true;
+      continue;
+    }
+    if (timeIndex < 0) continue;
+    const value = cells[timeIndex] || "";
+    const h = value.match(/(\d+)\s*시간/);
+    const m = value.match(/(\d+)\s*분/);
+    const s = value.match(/(\d+)\s*초/);
+    if (!h && !m && !s) continue;
+    total += Number(h?.[1] || 0) * 3600 + Number(m?.[1] || 0) * 60 + Number(s?.[1] || 0);
+  }
+  return foundTable ? total : null;
+}
+
+function progressFromStudyHistory(raw: unknown, durationSeconds?: number): number | null {
+  if (!durationSeconds || durationSeconds <= 0) return null;
+  const seconds = studySecondsFromHtml(raw);
+  if (seconds == null) return null;
+  return Math.max(0, Math.min(100, Math.round((seconds / durationSeconds) * 100)));
+}
+
 /**
  * 이러닝 영상 주소를 찾아 스트림으로 연다. 시청 기록은 보내지 않는다.
  * @param client - e-campus 클라이언트
@@ -57,7 +92,8 @@ export async function fetchProgress(
   client: EcampusClient,
   crsCreCd: string,
   lessonCntsId: string,
-  studentId: string
+  studentId: string,
+  durationSeconds?: number
 ): Promise<number> {
   // 강의실에 따라 목록 폼이 로그인 화면/빈 조각으로 반환되는 경우가 있다.
   // 이때 폼 조회 자체를 실패로 처리하면 학습률의 대체 조회도 못 하므로
@@ -102,8 +138,10 @@ export async function fetchProgress(
           timeout: 60000
         }
       );
-      const pct = findProgressPercent(response.data);
-      if (pct == null) continue;
+      const historyPct = progressFromStudyHistory(response.data, durationSeconds);
+      const parsedPct = findProgressPercent(response.data);
+      const pct = historyPct ?? parsedPct;
+      if (pct == null || (pct === 0 && durationSeconds)) continue;
       if (best == null || pct > best) best = pct;
       if (prgrRatioTypeCd === preferred && pct > 0) break;
     } catch {
@@ -112,7 +150,7 @@ export async function fetchProgress(
   }
   if (best == null) {
     const fallback = await client.viewLessonStudyDetail(lessonCntsId, crsCreCd);
-    best = findProgressPercent(fallback);
+    best = progressFromStudyHistory(fallback, durationSeconds) ?? findProgressPercent(fallback);
   }
   if (best == null) throw new Error("학습률 응답을 해석하지 못했습니다.");
   return best;
