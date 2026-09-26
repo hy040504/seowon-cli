@@ -393,6 +393,7 @@ const SIDEBAR = [
   { key: "sum", num: "9", emoji: "📌", label: "전체 현황", need: true, group: "사이드바" },
   { key: "cfg", num: "C", emoji: "⚙️", label: "설정", need: true, group: "사이드바" },
   { key: "info", num: "I", emoji: "🔬", label: "프로그램 정보", need: false, group: "사이드바" },
+  { key: "docs", num: "D", emoji: "📚", label: "문서 정리 (Dev)", need: false, group: "도구" },
   { key: "test", num: "T", emoji: "🧪", label: "함수 전수 조사 (Dev)", need: true, group: "도구" },
   { key: "exit", num: "0", emoji: "🚪", label: "종료", need: false, group: "도구" }
 ];
@@ -421,6 +422,8 @@ const ALIAS = {
   설정: "cfg",
   info: "info",
   정보: "info",
+  docs: "docs",
+  "문서 정리": "docs",
   test: "test",
   테스트: "test",
   전수: "test",
@@ -1316,6 +1319,23 @@ async function pageInfo(ctx) {
   await waitEnter(ctx.rl, "Enter 메뉴로 · Esc 이전");
 }
 
+/** 프로젝트 문서 위치와 최신 정리 항목을 보여 주는 개발용 화면. */
+async function pageDocs(ctx) {
+  beginScreen("📚 문서 정리 (Dev)", A.yellow);
+  console.log(c("  프로젝트 문서는 기능 설명과 문제 해결 기록을 분리해 관리합니다.", A.dim));
+  console.log("");
+  printKv([
+    ["기능 안내", "README.md"],
+    ["문서 색인", "docs/README.md"],
+    ["버그 수정", "docs/BUGFIX_LOG.md"],
+    ["엔진 안내", "lib/back/engine/README.md"]
+  ]);
+  console.log("");
+  console.log(c("  최근 정리: 학습 인정 시간 기반 학습률 계산, 조회 병렬화, 제출파일 인덱싱", A.gray));
+  console.log(c("  이 메뉴는 파일을 수정하지 않는 문서 확인용 개발 메뉴입니다.", A.dim));
+  await waitEnter(ctx.rl, "Enter 메뉴로 · Esc 이전");
+}
+
 const SURVEY_FUNCTIONS = [
   ["currentStudent", "지금 로그인된 학생인지 확인"],
   ["ensureSugang", "시간표 시스템에 맞추고 이름·학과를 가져옴"],
@@ -1548,6 +1568,7 @@ const PAGES = {
   sum: pageSum,
   cfg: pageCfg,
   info: pageInfo,
+  docs: pageDocs,
   test: pageTest
 };
 
@@ -1625,7 +1646,7 @@ async function main() {
   if (opt.help || opt.list) {
     console.log(helpText());
     console.log(c("\n사이드바: login todo asg ntc mat les tt score sum cfg info", A.gray));
-    console.log(c("도구: test  함수 전수 조사 (Dev)", A.gray));
+    console.log(c("도구: docs  문서 정리 (Dev) · test  함수 전수 조사 (Dev)", A.gray));
     console.log(c("\n조사 함수", A.bold));
     for (const [name, about] of SURVEY_FUNCTIONS) {
       console.log(`  ${name.padEnd(26)}  ${about}`);

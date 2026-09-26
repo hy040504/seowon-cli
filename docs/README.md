@@ -52,3 +52,12 @@ npm run typecheck
 
 - [CASE-018](./cases/사례-18-학습-인정-시간-기반-학습률.md): 퍼센트 필드 없이 반환되는 학습 인정 시간을 차시 길이와 비교해 학습률을 계산합니다.
 - 실제 e-campus 로그인 세션으로 문제 차시를 검증했습니다.
+
+## 문서 정리 (Dev)
+
+CLI의 `문서 정리 (Dev)` 메뉴는 문서를 수정하지 않고 다음 위치를 안내합니다.
+
+- `README.md`: 사용자 메뉴와 전체 변경 사항
+- `docs/README.md`: 사례 색인과 검증 결과
+- `docs/BUGFIX_LOG.md`: 버그 수정 이력
+- `lib/back/engine/README.md`: 엔진 계층 안내
