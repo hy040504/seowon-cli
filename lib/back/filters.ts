@@ -5,7 +5,7 @@
  * 웹 목록·현황 집계가 이 모듈의 판별만 사용한다.
  */
 import { htmlToText } from "./utils.js";
-import type { Snapshot, SnapshotAssignment, SnapshotCourse, SnapshotLesson, SummaryRow } from "./types/snapshot.js";
+import type { AcademicOverview, AcademicOverviewAssignment, AcademicOverviewCourse, AcademicOverviewLesson, SummaryRow } from "./types/academic-overview.js";
 
 /**
  * "2026.08.10 ~ 2026.08.20" 같은 문자열에서 날짜 두 개를 읽는다.
@@ -89,10 +89,10 @@ export function assignmentEffectivelyUnsubmitted(row: FileAwareAssignment): bool
 
 /**
  * 파일 유무를 반영해 dueNow·상태 문구를 다시 붙인다.
- * @param row - 스냅샷 과제
+ * @param row - 과목 현황의 과제
  * @param now - 기준 시각
  */
-export function refreshAssignmentDue<T extends SnapshotAssignment>(row: T, now = new Date()): T {
+export function refreshAssignmentDue<T extends AcademicOverviewAssignment>(row: T, now = new Date()): T {
   if (row.submittedFilesLoaded === true && !assignmentHasLoadedFiles(row) && !assignmentUnsubmitted(row.status)) {
     row.status = "미제출";
   }
@@ -101,15 +101,15 @@ export function refreshAssignmentDue<T extends SnapshotAssignment>(row: T, now =
 }
 
 /**
- * 이 세션에서 제출 파일을 비운 과제를 스냅샷에 미제출·지금 할 일로 되돌린다.
- * @param snapshot - 세션 스냅샷
+ * 이 세션에서 제출 파일을 비운 과제를 미제출·지금 할 일로 되돌린다.
+ * @param academicOverview - 세션의 과목 현황
  * @param emptyKeys - crsCreCd::id 집합
  * @param now - 기준 시각
  */
-export function applyEmptyFileAssignments(snapshot: Snapshot, emptyKeys: Iterable<string>, now = new Date()): void {
+export function applyEmptyFileAssignments(academicOverview: AcademicOverview, emptyKeys: Iterable<string>, now = new Date()): void {
   const keys = emptyKeys instanceof Set ? emptyKeys : new Set(emptyKeys);
   if (!keys.size) return;
-  for (const c of snapshot.courses) {
+  for (const c of academicOverview.courses) {
     for (const a of c.assignments) {
       const key = `${a.crsCreCd || c.crsCreCd}::${a.id}`;
       if (!keys.has(key)) continue;
@@ -120,7 +120,7 @@ export function applyEmptyFileAssignments(snapshot: Snapshot, emptyKeys: Iterabl
       refreshAssignmentDue(a, now);
     }
   }
-  snapshot.summary = buildSummary(snapshot.courses);
+  academicOverview.summary = buildSummary(academicOverview.courses);
 }
 
 /**
@@ -153,7 +153,7 @@ export function lessonUnwatched(attendance: string | undefined): boolean {
  * @param now - 기준 시각
  * @returns 플래그가 붙은 같은 객체
  */
-export function markAssignment(row: Omit<SnapshotAssignment, "dueNow">, now = new Date()): SnapshotAssignment {
+export function markAssignment(row: Omit<AcademicOverviewAssignment, "dueNow">, now = new Date()): AcademicOverviewAssignment {
   return refreshAssignmentDue({ ...row, dueNow: false }, now);
 }
 
@@ -164,7 +164,7 @@ export function markAssignment(row: Omit<SnapshotAssignment, "dueNow">, now = ne
  * @param now - 기준 시각
  * @returns 플래그가 붙은 같은 객체
  */
-export function markLesson(row: Omit<SnapshotLesson, "needsWatch">, now = new Date()): SnapshotLesson {
+export function markLesson(row: Omit<AcademicOverviewLesson, "needsWatch">, now = new Date()): AcademicOverviewLesson {
   return {
     ...row,
     needsWatch: periodActive(row.period, now) && lessonUnwatched(row.attendanceStatus)
@@ -184,7 +184,7 @@ export interface LessonWatchFacts {
  * 전체 차시에서 미학습·기간 밖 건수를 센다.
  * @param lessons - 필터 전 차시
  */
-export function lessonWatchFacts(lessons: SnapshotLesson[]): LessonWatchFacts {
+export function lessonWatchFacts(lessons: AcademicOverviewLesson[]): LessonWatchFacts {
   let unwatched = 0;
   let unknown = 0;
   let periodClosed = 0;
@@ -228,10 +228,10 @@ export function watchListEmptyMessage(facts: LessonWatchFacts): { text: string; 
 
 /**
  * 과목별 기간 내 미제출 과제·미완료 이러닝 수를 집계한다.
- * @param courses - 스냅샷 과목 목록
+ * @param courses - 과목 현황 목록
  * @returns 현황 행
  */
-export function buildSummary(courses: SnapshotCourse[]): SummaryRow[] {
+export function buildSummary(courses: AcademicOverviewCourse[]): SummaryRow[] {
   return courses.map((c) => ({
     courseTitle: c.courseTitle,
     crsCreCd: c.crsCreCd,

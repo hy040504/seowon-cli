@@ -645,7 +645,7 @@ async function pageLogin(ctx) {
   }
 }
 
-function flattenSnapshot(snap) {
+function flattenAcademicOverview(snap) {
   const courses = snap?.courses || [];
   let asg = 0;
   let les = 0;
@@ -663,14 +663,14 @@ function flattenSnapshot(snap) {
 /** 지금 제출 기간의 미제출 과제와, 지금 학습 기간의 미학습 차시. */
 async function pageTodo(ctx) {
   beginScreen("🔥 지금 할 것", A.red);
-    const snap = await spin("fetchSnapshot", () => ctx.api.fetchSnapshot({ refresh: true, timeoutMs: 90000 }));
+    const snap = await spin("fetchAcademicOverview", () => ctx.api.fetchAcademicOverview({ refresh: true, timeoutMs: 90000 }));
     if (!snap.ok) {
       console.log(c(`  ${failLine(snap)}`, A.red));
       await waitEnter(ctx.rl);
       return;
     }
     const list = await spin("listAssignments", () => ctx.api.listAssignments({ filter: "due", timeoutMs: 60000 }));
-    const s = flattenSnapshot(snap.data.snapshot);
+    const s = flattenAcademicOverview(snap.data.academicOverview);
     let dueNowAsg = list.ok ? list.data?.rows || [] : [];
     if (!list.ok) {
       dueNowAsg = [];
@@ -1168,14 +1168,14 @@ async function pageSum(ctx) {
       ["3", "비교과 과목만", "3"]
     ]);
     if (!a) return;
-    const snap = await spin("fetchSnapshot", () => ctx.api.fetchSnapshot({ refresh: true, timeoutMs: 90000 }));
+    const snap = await spin("fetchAcademicOverview", () => ctx.api.fetchAcademicOverview({ refresh: true, timeoutMs: 90000 }));
     beginScreen("📌 전체 현황", A.blue);
     if (!snap.ok) {
       console.log(c(`  ${failLine(snap)}`, A.red));
       await waitEnter(ctx.rl);
       continue;
     }
-    const s = flattenSnapshot(snap.data.snapshot);
+    const s = flattenAcademicOverview(snap.data.academicOverview);
     let courses = s.courses;
     if (a === "2") courses = courses.filter((x) => /교과/.test(x.label || x.category || "") && !/비교과/.test(x.label || x.category || ""));
     if (a === "3") courses = courses.filter((x) => /비교과/.test(x.label || x.category || ""));
@@ -1340,7 +1340,7 @@ const SURVEY_FUNCTIONS = [
   ["currentStudent", "지금 로그인된 학생인지 확인"],
   ["ensureSugang", "시간표 시스템에 맞추고 이름·학과를 가져옴"],
   ["clearCache", "메모리에 둔 과제·공지·자료·이러닝·성적 캐시를 비움"],
-  ["fetchSnapshot", "과목별 과제와 이러닝을 한 번에 조회"],
+  ["fetchAcademicOverview", "과목별 과제와 이러닝을 한 번에 조회"],
   ["listAssignments", "과제 목록. 전체·교과·지금 할 일·미제출·제출완료"],
   ["fetchAssignmentDetail", "과제 하나의 본문과 제출 파일"],
   ["fetchNotices", "공지 목록"],
@@ -1431,7 +1431,7 @@ async function runReadSweep(ctx) {
   log("currentStudent", await api.currentStudent());
   log("ensureSugang", await api.ensureSugang({ timeoutMs: 25000 }));
   log("clearCache", await api.clearCache());
-  log("fetchSnapshot", await api.fetchSnapshot({ refresh: true, timeoutMs: 90000 }));
+  log("fetchAcademicOverview", await api.fetchAcademicOverview({ refresh: true, timeoutMs: 90000 }));
 
   let assignments = [];
   for (const filter of ["all", "curricular", "due", "missing", "submitted"]) {

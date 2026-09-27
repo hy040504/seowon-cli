@@ -51,7 +51,7 @@
 
 학번·비밀번호·학교 쿠키는 디스크에 쓰지 않습니다. 프로세스를 끝내면 그 세션은 사라집니다. 테마 색만 `data/tui-config.json` 에 남습니다.
 
-추적 로그는 `fetchSnapshot({...})` 처럼 **부른 함수 이름**이고, 그 아래에는 `lib/back` 기준 service · engine 파일을 적습니다. HTTP 경로를 메뉴 로그로 찍지 않습니다.
+추적 로그는 `fetchAcademicOverview({...})` 처럼 **부른 함수 이름**이고, 그 아래에는 `lib/back` 기준 service · engine 파일을 적습니다. HTTP 경로를 메뉴 로그로 찍지 않습니다.
 
 ---
 

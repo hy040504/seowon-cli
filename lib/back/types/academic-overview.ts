@@ -1,8 +1,8 @@
 /** 교과 / 비교과. e-campus crsTypeCd=CO 이면 extracurricular */
 export type CourseCategory = "curricular" | "extracurricular";
 
-/** 스냅샷 과제 행. dueNow는 기간 안 + 미제출일 때만 true */
-export interface SnapshotAssignment {
+/** 과목 현황의 과제 행. dueNow는 기간 안 + 미제출일 때만 true */
+export interface AcademicOverviewAssignment {
   id: string; // 과제 서버 ID (asmntCd)
   title: string; // 과제 제목
   period: string; // 제출 기간 원문
@@ -15,8 +15,8 @@ export interface SnapshotAssignment {
   submittedFilesLoaded?: boolean; // 제출 파일을 이미 조회했는지
 }
 
-/** 스냅샷 이러닝 차시 행. needsWatch는 기간 안 + 미학습·학습중일 때만 true */
-export interface SnapshotLesson {
+/** 과목 현황의 이러닝 차시 행. needsWatch는 기간 안 + 미학습·학습중일 때만 true */
+export interface AcademicOverviewLesson {
   id: string; // 차시 식별값 (lessonCntsId 와 동일)
   week: string; // 주차/차시 묶음 제목
   title: string; // 강의 제목
@@ -29,15 +29,15 @@ export interface SnapshotLesson {
   needsWatch: boolean; // 지금 들어야 하는지
 }
 
-/** 스냅샷 과목. 과제·이러닝을 과목 단위로 묶는다 */
-export interface SnapshotCourse {
+/** 과목별 과제와 이러닝을 묶은 현황 */
+export interface AcademicOverviewCourse {
   courseTitle: string; // 과목명
   crsCreCd: string; // 과목/강의실 코드
   category: CourseCategory; // 교과 / 비교과
   label?: string; // 과목 구분 라벨 (예: 전공, 교양, 비교과 등)
   professor?: string; // 담당 교수명
-  assignments: SnapshotAssignment[]; // 과제 목록
-  elearning: SnapshotLesson[]; // 이러닝 차시 목록
+  assignments: AcademicOverviewAssignment[]; // 과제 목록
+  elearning: AcademicOverviewLesson[]; // 이러닝 차시 목록
 }
 
 /** 현황 한 줄. 기간 내 미제출 과제·들을 차시 수 */
@@ -49,22 +49,22 @@ export interface SummaryRow {
   pendingLessons: number; // 지금 들어야 하는 차시 수
 }
 
-/** 전 과목 조회 스냅샷. 세션에 캐시하고 다시 조회 시 갈아끼운다 */
-export interface Snapshot {
+/** 전 과목 과제·이러닝 현황. 조회 시각을 포함하며 세션에 캐시된다 */
+export interface AcademicOverview {
   savedAt: string; // 조회 시각 ISO
   semester: string; // 학기 표시값 (예: 2026-2)
-  courses: SnapshotCourse[]; // 과목 목록
+  courses: AcademicOverviewCourse[]; // 과목 목록
   summary: SummaryRow[]; // 현황 집계
 }
 
 /** 목록 API에 펼친 과제 행. 과목명을 붙인다 */
-export interface AssignmentListRow extends SnapshotAssignment {
+export interface AssignmentListRow extends AcademicOverviewAssignment {
   courseTitle: string; // 과목명
   category?: CourseCategory; // 교과 / 비교과. 목록 필터에 씀
 }
 
 /** 목록 API에 펼친 차시 행. 학교 재생 URL을 붙인다 */
-export interface LessonListRow extends SnapshotLesson {
+export interface LessonListRow extends AcademicOverviewLesson {
   courseTitle: string; // 과목명
   playUrl: string; // e-campus 강의 창 URL
 }

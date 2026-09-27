@@ -438,7 +438,7 @@ export function makeKit(theme) {
       service: ["services/ecampus/login.ts"],
       engine: ["engine/course-registration/client.ts", "engine/hope-basket/client.ts"]
     },
-    fetchSnapshot: {
+    fetchAcademicOverview: {
       service: ["services/ecampus/classroom.ts"],
       engine: ["engine/ecampus/login.ts", "engine/ecampus/courses.ts", "engine/ecampus/classroom.ts", "engine/ecampus/elearning.ts"]
     },
@@ -520,7 +520,7 @@ export function makeKit(theme) {
       "currentStudent",
       "ensureSugang",
       "clearCache",
-      "fetchSnapshot",
+      "fetchAcademicOverview",
       "listAssignments",
       "fetchAssignmentDetail",
       "submitAssignment",

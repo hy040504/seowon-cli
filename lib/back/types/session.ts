@@ -14,7 +14,7 @@ import type {
 import type { MaterialRow, NoticeRow } from "./classroom.js";
 import type { WebErpOverallGrades } from "./grades.js";
 import type { ScoreRow } from "./score.js";
-import type { Snapshot } from "./snapshot.js";
+import type { AcademicOverview } from "./academic-overview.js";
 import type { SugangCredentials, WebStudent } from "./student.js";
 import type { WebTimetable } from "./timetable.js";
 
@@ -32,7 +32,7 @@ export interface WebSession {
   hope: HopeBasketClient | null; // 희망바구니 클라이언트. 담기·취소는 부르지 않음
   erp: ErpClient | null; // 통합정보시스템 클라이언트. 지난 성적 조회용
   sugangCreds: SugangCredentials | null; // 시간표 SSO용 자격. 유휴 만료 시 지움
-  snapshot: Snapshot | null; // 과제·이러닝 캐시
+  academicOverview: AcademicOverview | null; // 과제·이러닝 현황 캐시
   rawAssignments: Map<string, EcampusClassroomItem>; // 과제 상세/제출용 원본 (crsCreCd::id)
   rawMaterials: Map<string, EcampusClassroomItem>; // 자료 첨부용 원본 (crsCreCd::id)
   materials: MaterialRow[] | null; // 강의자료실 목록 캐시
@@ -53,7 +53,7 @@ export interface CreateSessionInit {
   hope?: HopeBasketClient | null; // 희망바구니 클라이언트
   erp?: ErpClient | null; // 통합정보시스템 클라이언트
   sugangCreds?: SugangCredentials | null; // 시간표 SSO 자격
-  snapshot?: Snapshot | null; // 미리 채운 스냅샷
+  academicOverview?: AcademicOverview | null; // 미리 채운 과목 현황
   rawAssignments?: Map<string, EcampusClassroomItem>; // 미리 채운 과제 원본
   rawMaterials?: Map<string, EcampusClassroomItem>; // 미리 채운 자료 원본
   rawNotices?: Map<string, EcampusClassroomItem>; // 미리 채운 공지 원본

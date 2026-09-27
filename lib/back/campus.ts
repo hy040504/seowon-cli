@@ -14,7 +14,7 @@ import {
   fetchMaterialAttachments as readMaterialAttachments,
   fetchNoticeDetail as readNoticeDetail,
   fetchNotices as readNotices,
-  fetchSnapshot as readSnapshot,
+  fetchAcademicOverview as readAcademicOverview,
   submitAssignment as sendAssignment
 } from "./services/ecampus/classroom.js";
 import { downloadLessonVideo as openLessonVideo, fetchProgress as readProgress } from "./services/ecampus/elearning.js";
@@ -24,7 +24,7 @@ import { fetchGradeOverview, fetchGradeTermDetails } from "./services/erp/grades
 import { applyEmptyFileAssignments, assignmentEffectivelyUnsubmitted, lessonWatchFacts, refreshAssignmentDue } from "./filters.js";
 import { fetchTimetable as readTimetable, renderTimetablePng } from "./services/timetable/timetable.js";
 import type { EcampusClient } from "./engine/index.js";
-import type { AssignmentListRow, LessonListRow, Snapshot } from "./types/snapshot.js";
+import type { AssignmentListRow, LessonListRow, AcademicOverview } from "./types/academic-overview.js";
 import type { WebSession } from "./types/session.js";
 import type { WebStudent } from "./types/student.js";
 import { errorMessage, withTimeout } from "./utils.js";
@@ -101,7 +101,7 @@ export class Campus {
         hope: null,
         erp: null,
         sugangCreds: logged.sugangCreds,
-        snapshot: null,
+        academicOverview: null,
         rawAssignments: new Map(),
         rawMaterials: new Map(),
         materials: null,
@@ -142,7 +142,7 @@ export class Campus {
   async clearCache(): Promise<CallResult<{ ok: true }>> {
     return this.run(async () => {
       const sess = this.requireSession();
-      sess.snapshot = null;
+      sess.academicOverview = null;
       sess.timetable = null;
       sess.scores = null;
       sess.erpGrades = null;
@@ -155,8 +155,8 @@ export class Campus {
     });
   }
 
-  private dropSnapshot(sess: WebSession): void {
-    sess.snapshot = null;
+  private dropAcademicOverview(sess: WebSession): void {
+    sess.academicOverview = null;
     sess.rawAssignments.clear();
   }
 
@@ -167,23 +167,23 @@ export class Campus {
     else sess.emptyFileAssignments.add(key);
   }
 
-  private async ensureSnapshot(sess: WebSession): Promise<Snapshot> {
-    if (sess.snapshot) {
-      applyEmptyFileAssignments(sess.snapshot, sess.emptyFileAssignments || []);
-      return sess.snapshot;
+  private async ensureAcademicOverview(sess: WebSession): Promise<AcademicOverview> {
+    if (sess.academicOverview) {
+      applyEmptyFileAssignments(sess.academicOverview, sess.emptyFileAssignments || []);
+      return sess.academicOverview;
     }
-    const loaded = await readSnapshot(this.client(sess), sess.student);
-    sess.snapshot = loaded.snapshot;
+    const loaded = await readAcademicOverview(this.client(sess), sess.student);
+    sess.academicOverview = loaded.academicOverview;
     sess.rawAssignments = loaded.rawAssignments;
-    applyEmptyFileAssignments(sess.snapshot, sess.emptyFileAssignments || []);
-    return loaded.snapshot;
+    applyEmptyFileAssignments(sess.academicOverview, sess.emptyFileAssignments || []);
+    return loaded.academicOverview;
   }
 
-  async fetchSnapshot(input: { refresh?: boolean } & Timed = {}): Promise<CallResult<{ snapshot: Snapshot }>> {
+  async fetchAcademicOverview(input: { refresh?: boolean } & Timed = {}): Promise<CallResult<{ academicOverview: AcademicOverview }>> {
     return this.run(async () => {
       const sess = this.requireSession();
-      if (input.refresh) this.dropSnapshot(sess);
-      return { snapshot: await this.ensureSnapshot(sess) };
+      if (input.refresh) this.dropAcademicOverview(sess);
+      return { academicOverview: await this.ensureAcademicOverview(sess) };
     }, input.timeoutMs);
   }
 
@@ -197,12 +197,12 @@ export class Campus {
           ? input.category
           : "all";
       const statusFilter = filter === "curricular" || filter === "extracurricular" ? "all" : filter;
-      if (input.refresh) this.dropSnapshot(sess);
-      const snapshot = await this.ensureSnapshot(sess);
-      let rows = this.flattenAssignments(snapshot);
+      if (input.refresh) this.dropAcademicOverview(sess);
+      const academicOverview = await this.ensureAcademicOverview(sess);
+      let rows = this.flattenAssignments(academicOverview);
       if (category !== "all") rows = rows.filter((row) => (row.category || "curricular") === category);
       try {
-        await attachSubmittedFilesToRows(this.client(sess), sess.rawAssignments, rows, sess.snapshot);
+        await attachSubmittedFilesToRows(this.client(sess), sess.rawAssignments, rows, sess.academicOverview);
       } catch {
         /* 목록은 유지 */
       }
@@ -211,7 +211,7 @@ export class Campus {
         this.noteFile(sess, row.crsCreCd, row.id, Boolean(row.hasSubmittedFile));
         refreshAssignmentDue(row);
       }
-      if (sess.snapshot) applyEmptyFileAssignments(sess.snapshot, sess.emptyFileAssignments || []);
+      if (sess.academicOverview) applyEmptyFileAssignments(sess.academicOverview, sess.emptyFileAssignments || []);
       if (statusFilter === "due") rows = rows.filter((row) => Boolean(row.dueNow));
       if (statusFilter === "missing") rows = rows.filter((row) => assignmentEffectivelyUnsubmitted(row));
       if (statusFilter === "submitted") rows = rows.filter((row) => Boolean(row.hasSubmittedFile));
@@ -227,8 +227,8 @@ export class Campus {
       const detail = await readAssignmentDetail(this.client(sess), sess.rawAssignments.get(`${crsCreCd}::${id}`), { id, crsCreCd });
       const hasFile = (detail.submittedAttachments || []).length > 0;
       this.noteFile(sess, crsCreCd, id, hasFile);
-      if (sess.snapshot) {
-        for (const course of sess.snapshot.courses) {
+      if (sess.academicOverview) {
+        for (const course of sess.academicOverview.courses) {
           for (const assignment of course.assignments) {
             if (assignment.id !== id) continue;
             if ((assignment.crsCreCd || course.crsCreCd) !== crsCreCd) continue;
@@ -238,7 +238,7 @@ export class Campus {
             refreshAssignmentDue(assignment);
           }
         }
-        applyEmptyFileAssignments(sess.snapshot, sess.emptyFileAssignments || []);
+        applyEmptyFileAssignments(sess.academicOverview, sess.emptyFileAssignments || []);
       }
       return { ...detail, hasSubmittedFile: hasFile };
     }, input.timeoutMs);
@@ -276,7 +276,7 @@ export class Campus {
       });
       const hasSubmittedFile = result.hasSubmittedFile !== false;
       this.noteFile(sess, crsCreCd, id, hasSubmittedFile);
-      sess.snapshot = null;
+      sess.academicOverview = null;
       return { hasSubmittedFile };
     }, input.timeoutMs);
   }
@@ -350,9 +350,9 @@ export class Campus {
   async listLessons(input: { filter?: string; refresh?: boolean } & Timed = {}): Promise<CallResult<{ rows: LessonListRow[]; facts: ReturnType<typeof lessonWatchFacts> }>> {
     return this.run(async () => {
       const sess = this.requireSession();
-      if (input.refresh) this.dropSnapshot(sess);
-      const snapshot = await this.ensureSnapshot(sess);
-      const all = this.flattenLessons(snapshot, "all");
+      if (input.refresh) this.dropAcademicOverview(sess);
+      const academicOverview = await this.ensureAcademicOverview(sess);
+      const all = this.flattenLessons(academicOverview, "all");
       const filter = input.filter || "all";
       return {
         rows: filter === "watch" ? all.filter((lesson) => lesson.needsWatch) : all,
@@ -361,28 +361,28 @@ export class Campus {
     }, input.timeoutMs);
   }
 
-  async fetchProgress(input: { crsCreCd: string; lessonCntsId: string } & Timed): Promise<CallResult<{ progressPercent: number; snapshot: Snapshot }>> {
+  async fetchProgress(input: { crsCreCd: string; lessonCntsId: string } & Timed): Promise<CallResult<{ progressPercent: number; academicOverview: AcademicOverview }>> {
     return this.run(async () => {
       const sess = this.requireSession();
       const crsCreCd = String(input.crsCreCd || "");
       const lessonCntsId = String(input.lessonCntsId || "");
       if (!crsCreCd || !lessonCntsId) throw new Error("차시 정보가 부족합니다.");
       const studentId = sess.student.studentId || sess.student.userNo || "";
-      const snapshot = await this.ensureSnapshot(sess);
-      const lessonRow = snapshot.courses
+      const academicOverview = await this.ensureAcademicOverview(sess);
+      const lessonRow = academicOverview.courses
         .find((course) => course.crsCreCd === crsCreCd)
         ?.elearning.find((lesson) => lesson.lessonCntsId === lessonCntsId);
       const listed = lessonRow?.progressPercent;
       const pct = listed != null
         ? listed
         : await readProgress(this.client(sess), crsCreCd, lessonCntsId, studentId, lessonRow?.durationSeconds);
-      for (const course of snapshot.courses) {
+      for (const course of academicOverview.courses) {
         if (course.crsCreCd !== crsCreCd) continue;
         for (const lesson of course.elearning) {
           if (lesson.lessonCntsId === lessonCntsId) lesson.progressPercent = pct;
         }
       }
-      return { progressPercent: pct, snapshot };
+      return { progressPercent: pct, academicOverview };
     }, input.timeoutMs);
   }
 
@@ -473,9 +473,9 @@ export class Campus {
     }, input.timeoutMs);
   }
 
-  private flattenAssignments(snapshot: Snapshot): AssignmentListRow[] {
+  private flattenAssignments(academicOverview: AcademicOverview): AssignmentListRow[] {
     const rows: AssignmentListRow[] = [];
-    for (const course of snapshot.courses) {
+    for (const course of academicOverview.courses) {
       const category = course.category === "extracurricular" || String(course.label || "").includes("비교과")
         ? "extracurricular"
         : "curricular";
@@ -494,9 +494,9 @@ export class Campus {
     });
   }
 
-  private flattenLessons(snapshot: Snapshot, filter: string): LessonListRow[] {
+  private flattenLessons(academicOverview: AcademicOverview, filter: string): LessonListRow[] {
     const rows: LessonListRow[] = [];
-    for (const course of snapshot.courses) {
+    for (const course of academicOverview.courses) {
       for (const lesson of course.elearning) {
         if (filter === "watch" && !lesson.needsWatch) continue;
         const playUrl =

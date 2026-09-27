@@ -27,7 +27,7 @@ import type {
   NoticeDetail,
   NoticeRow
 } from "../../types/classroom.js";
-import type { AssignmentListRow, Snapshot, SnapshotCourse } from "../../types/snapshot.js";
+import type { AssignmentListRow, AcademicOverview, AcademicOverviewCourse } from "../../types/academic-overview.js";
 import type { WebStudent } from "../../types/student.js";
 import { mapLimit } from "../../utils.js";
 
@@ -60,15 +60,15 @@ function assignmentItem(
 }
 
 /**
- * 전 과목 과제·이러닝을 모아 스냅샷을 만든다.
+ * 전 과목 과제·이러닝을 모아 현재 학업 현황을 만든다.
  * @param client - e-campus 클라이언트
  * @param student - 학번·userNo 가 있는 학생 정보
- * @returns 스냅샷과 제출용 원본 맵
+ * @returns 과목 현황과 제출용 원본 맵
  */
-export async function fetchSnapshot(
+export async function fetchAcademicOverview(
   client: EcampusClient,
   student: WebStudent
-): Promise<{ snapshot: Snapshot; rawAssignments: Map<string, EcampusClassroomItem> }> {
+): Promise<{ academicOverview: AcademicOverview; rawAssignments: Map<string, EcampusClassroomItem> }> {
   const now = new Date();
   const list = await client.getCourseList();
   const courses = await mapLimit(list, FETCH_LIMIT, async (c) => {
@@ -94,7 +94,7 @@ export async function fetchSnapshot(
       durationSeconds?: number;
       progressPercent?: number | null;
     }> = lessons;
-    const course: SnapshotCourse & { _rawAssignments: EcampusClassroomItem[] } = {
+    const course: AcademicOverviewCourse & { _rawAssignments: EcampusClassroomItem[] } = {
       courseTitle: c.title || (c as any).courseTitle || "",
       crsCreCd: c.crsCreCd,
       category: c.crsTypeCd === "CO" ? "extracurricular" : "curricular",
@@ -146,13 +146,13 @@ export async function fetchSnapshot(
     delete (c as { _rawAssignments?: EcampusClassroomItem[] })._rawAssignments;
   }
 
-  const snapshot: Snapshot = {
+  const academicOverview: AcademicOverview = {
     savedAt: new Date().toISOString(),
     semester: semesterFromCode(courses[0]?.crsCreCd),
     courses,
     summary: buildSummary(courses)
   };
-  return { snapshot, rawAssignments };
+  return { academicOverview, rawAssignments };
 }
 
 /**
@@ -204,23 +204,23 @@ export async function fetchAssignmentSubmittedFiles(
 }
 
 /**
- * 제출한 과제 행에 제출 파일 목록을 붙인다. 한 번 조회한 행은 스냅샷에 남겨 둔다.
+ * 제출한 과제 행에 제출 파일 목록을 붙인다. 한 번 조회한 행은 과목 현황에 남겨 둔다.
  * @param client - e-campus 클라이언트
  * @param rawAssignments - 과제 원본 맵
  * @param rows - 목록 API 행
- * @param snapshot - 세션 스냅샷. 있으면 캐시로 쓴다
+ * @param academicOverview - 세션에 캐시된 과목 현황
  */
 export async function attachSubmittedFilesToRows(
   client: EcampusClient,
   rawAssignments: Map<string, EcampusClassroomItem>,
   rows: AssignmentListRow[],
-  snapshot?: Snapshot | null
+  academicOverview?: AcademicOverview | null
 ): Promise<void> {
   const pending = rows.filter((r) => !r.submittedFilesLoaded);
   if (!pending.length) return;
   // 각 행을 갱신할 때마다 courses 전체를 순회하지 않도록 한 번만 인덱싱한다.
-  const assignmentsByKey = new Map<string, Snapshot["courses"][number]["assignments"][number]>();
-  for (const course of snapshot?.courses || []) {
+  const assignmentsByKey = new Map<string, AcademicOverview["courses"][number]["assignments"][number]>();
+  for (const course of academicOverview?.courses || []) {
     for (const assignment of course.assignments) {
       assignmentsByKey.set(`${course.crsCreCd}::${assignment.id}`, assignment);
     }
@@ -252,7 +252,7 @@ export async function attachSubmittedFilesToRows(
     assignment.status = row.status;
     assignment.dueNow = row.dueNow;
   });
-  if (snapshot) snapshot.summary = buildSummary(snapshot.courses);
+  if (academicOverview) academicOverview.summary = buildSummary(academicOverview.courses);
 }
 
 /**
