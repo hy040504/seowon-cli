@@ -284,6 +284,7 @@ seowon-cli/
 │           └── tui-actions.ts   저장 · 제출 · 다운로드
 ├── scripts/copy-legacy.mjs      빌드 때 로그인 암호화 파일 복사
 ├── cli.bat
+├── 외부저장소-강제최신화.bat        원격 main 상태로 강제 동기화
 └── package.json
 ```
 
@@ -294,6 +295,7 @@ seowon-cli/
 | `lib/back/campus.ts` | 메뉴가 부르는 함수. 웹 API가 아님 |
 | `lib/front/tui/cli.ts` | 학생 메뉴 |
 | `cli.bat` | Windows에서 설치 후 같은 메뉴 실행 |
+| `외부저장소-강제최신화.bat` | 원격 `origin/main`으로 강제 동기화. 배포·빌드는 수행하지 않음 |
 
 모듈은 ESM (`"type": "module"`) 입니다. 언어는 TypeScript 이고 Node.js 20 에서 실행합니다. 화면은 웹 프레임워크 없이 `lib/front/tui` 가 그립니다. 학교 페이지는 axios, HTML 은 cheerio, 시간표 PNG 는 `@resvg/resvg-js` 입니다. 공개 함수는 한국어 JSDoc(`@param` / `@returns`)을 씁니다.
 
@@ -408,6 +410,7 @@ MIT. 수업용 비공식 클라이언트입니다.
 
 ## 최근 반영 사항
 
+- `외부저장소-강제최신화.bat` 를 추가했습니다. 원격 `origin/main` 을 로컬에 강제 동기화합니다. 의존성 설치·빌드는 수행하지 않으며, 실행 전 백업 브랜치를 자동 생성합니다.
 - 개발 도구 메뉴에 `문서 정리 (Dev)`를 추가해 README·docs 색인·버그 수정 기록 위치를 CLI에서 확인할 수 있습니다.
 - 과목별 과제·이러닝 조회를 병렬화하고, 제출파일 스냅샷 갱신 인덱스를 재사용하도록 내부 조회 흐름을 최적화했습니다.
 - 공통 동시성 제한 함수에 잘못된 제한값 보정과 관련 주석을 추가했습니다.
