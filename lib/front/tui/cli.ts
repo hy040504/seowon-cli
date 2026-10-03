@@ -571,7 +571,7 @@ async function ensureLogin(ctx, force = false) {
   let sid = force ? "" : opt.sid;
   let pw = force ? "" : opt.pw;
   if (!sid) sid = await ask(rl, "학번", opt.sid || "");
-  if (!pw) pw = await ask(rl, "비밀번호", "");
+  if (!pw) pw = await ask(rl, "비밀번호", "", { secret: true });
   sid = cleanSid(sid);
   pw = cleanPw(pw);
   if (!sid || !pw) {
