@@ -43,7 +43,7 @@ npm audit
 2. 실제 자격 증명·세션이 공개된 것으로 확인되면 비밀번호를 바꾸고 해당 세션을 폐기합니다. 이력 삭제로 자격 증명의 유효성이 사라지지는 않습니다.
 3. 새 공개 저장소 또는 정리한 복제본에서 파일·이력 검사를 다시 실행하고 이미지도 확인합니다. 기존 원격 이력을 교체할 때는 협업자의 복제본·PR·캐시·포크도 함께 처리해야 합니다.
 
-구체적인 이력 정리와 원격 잔존 자료 처리는 [GitHub의 민감한 데이터 제거 안내](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)를 따릅니다. 이전 저장소와 정리된 코드의 백업은 로컬 비공개 폴더에 보관했습니다. 새 저장소에는 현재 main 코드만 업로드하고 이전 Git 이력을 연결하지 않았습니다. 확인된 실제 계정 자격의 노출이 없어 학교 비밀번호·서버 세션은 변경하지 않았습니다. GitHub 캐시와 외부 사본의 삭제는 [이력 정리 문서](docs/history-cleanup.md)의 별도 절차를 따릅니다.
+구체적인 이력 정리와 원격 잔존 자료 처리는 [GitHub의 민감한 데이터 제거 안내](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)를 따릅니다. 이전 저장소와 정리된 코드의 백업은 로컬 비공개 폴더에 보관했습니다. 새 저장소에는 현재 main 코드만 업로드하고 이전 Git 이력을 연결하지 않았습니다. 2026-10-10 사용자 확인에 따르면 학교 비밀번호 변경·기존 세션 폐기는 아직 수행하지 않았습니다. GitHub Support 접수·내부 삭제 확인도 남아 있으며, [이력 정리 문서의 남은 외부 조치](docs/history-cleanup.md#남은-외부-조치와-완료-조건)에 상태와 완료 조건을 기록합니다.
 
 ## 취약점 제보와 CVE
 
