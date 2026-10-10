@@ -8,7 +8,7 @@
 
 이전 저장소에서 공개 GIF 11개·실제 과제 PNG·미검토 GUI 로딩 PNG·개인 응답 JSON 2개 등 15개 경로를 제거했고, 이름·학번·단과대·학과와 관련 필드 값을 가상 값으로 바꿨습니다. 정리 당시 전체 참조의 53개 커밋·505개 객체 검사에서 원문 정보와 제거 경로는 0건이었습니다. 이 수치는 새 저장소의 커밋 수가 아니라 이전 정리 작업의 검증 기록입니다.
 
-학교 계정은 변경하지 않았습니다. 새 CVE를 신청하거나 발급받은 상태도 아닙니다. 코드 공개와 서버의 계정·DB·인증 정책은 별도로 관리합니다.
+2026-10-10 확인한 사용자 답변에 따르면 학교 계정 비밀번호 변경과 기존 세션 폐기는 아직 수행하지 않았습니다. 새 CVE를 신청하거나 발급받은 상태도 아닙니다. 코드 공개와 서버의 계정·DB·인증 정책은 별도로 관리합니다.
 
 ## 기존 사용자의 이전
 
@@ -36,7 +36,9 @@ npm run build
 
 인증 없는 요청으로 이전 main·gui·tui 커밋 API, 변경 시작 커밋, 로그인·성적 GIF 주소를 검사했습니다. 기존 API는 초기 확인에서 404, 이후 독립 확인에서 커밋을 찾지 못했다는 422를 반환했습니다. 로그인·성적 GIF와 확인한 이전 커밋 웹 페이지는 404였습니다. 따라서 확인한 과거 자료의 공개 접근은 차단된 상태입니다. 이 응답만으로 서버 내부 보관 데이터의 영구 삭제까지 증명하지 않습니다.
 
-삭제·재생성만으로 GitHub 서버 보관 데이터의 영구 삭제나 외부 복제본 삭제를 보장하지 않습니다. [GitHub의 민감한 데이터 제거 안내](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)에 따른 서버 GC·캐시 영구 제거는 Support의 별도 절차입니다. 원본 자료를 지원 티켓에 첨부하지 않습니다.
+삭제·재생성만으로 GitHub 서버 보관 데이터의 영구 삭제나 외부 복제본 삭제를 보장하지 않습니다. [GitHub의 민감한 데이터 제거 안내](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)에 따른 서버 GC·캐시 영구 제거는 Support의 별도 절차입니다.
+
+삭제된 저장소 ID 1335799163과 현재 저장소 ID 1412929109를 구분하고, 현재 저장소 보존을 명시한 영구 삭제 요청서를 비공개로 준비했습니다. [GitHub Support 요청](https://support.github.com/contact?tags=rr-remove-data)의 웹 로그인과 접수, 서버 GC·잔존 자료 삭제 완료 확인은 아직 남아 있습니다. 원문 백업·치환표·녹화·학생 응답 자료는 지원 티켓에 첨부하지 않습니다.
 
 기존 Actions 실행 기록·설정은 새 저장소에 자동 승계되지 않습니다. 필요한 보안 설정을 다시 적용하고 [새 저장소 CI](https://github.com/hy040504/seowon-cli/actions)에서 Windows·Ubuntu의 전체 검사를 실행합니다. 비공개 취약점 제보는 [GitHub Security](https://github.com/hy040504/seowon-cli/security/advisories/new)에서 받습니다.
 
