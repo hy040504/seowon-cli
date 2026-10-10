@@ -1,0 +1,428 @@
+/**
+ * 강의실 과제·공지·자료 조회와 과제 제출.
+ *
+ * 목록·첨부는 내장 engine 클라이언트를 쓰고,
+ * 상세 HTML 재전송·제출 폼만 웹에서 감싼다.
+ */
+import {
+  parseEcampusClassroomAttachmentsHtml,
+  type EcampusClassroomItem,
+  type EcampusClient
+} from "../../engine/index.js";
+import {
+  assignmentDetailText,
+  buildSummary,
+  markAssignment,
+  markLesson,
+  noticeDetailText,
+  refreshAssignmentDue,
+  semesterFromCode
+} from "../../filters.js";
+import { FETCH_LIMIT, LIST_SCALE } from "../../constants.js";
+import type {
+  AssignmentDetail,
+  AssignmentSubmitPayload,
+  AttachmentRow,
+  MaterialRow,
+  NoticeDetail,
+  NoticeRow
+} from "../../types/classroom.js";
+import type { AssignmentListRow, AcademicOverview, AcademicOverviewCourse } from "../../types/academic-overview.js";
+import type { WebStudent } from "../../types/student.js";
+import { mapLimit, UserFacingError } from "../../utils.js";
+import { assertSchoolUrl } from "../../engine/shared/http.js";
+
+/**
+ * 목록 raw 가 없으면 과제 식별자로 상세 요청 항목을 만든다.
+ * @param raw - 목록 원본
+ * @param ids - 과제 식별자
+ * @param baseUrl - e-campus 기본 URL
+ */
+function assignmentItem(
+  raw: EcampusClassroomItem | undefined,
+  ids: { id?: string; crsCreCd?: string },
+  baseUrl: string
+): EcampusClassroomItem {
+  if (raw?.request?.url) return raw;
+  const id = ids.id || raw?.id || "";
+  const crsCreCd = ids.crsCreCd || raw?.request?.body?.crsCreCd || "";
+  if (!id || !crsCreCd) throw new UserFacingError("과제 상세를 열 정보가 없습니다.");
+  const url = new URL("/asmnt/asmntLect/Form/asmntStuMain", baseUrl).toString();
+  return {
+    id,
+    title: raw?.title || "",
+    url,
+    request: {
+      method: "POST",
+      url,
+      body: { ...(raw?.request?.body || {}), asmntCd: id, crsCreCd }
+    }
+  };
+}
+
+/**
+ * 전 과목 과제·이러닝을 모아 현재 학업 현황을 만든다.
+ * @param client - e-campus 클라이언트
+ * @param student - 학번·userNo 가 있는 학생 정보
+ * @returns 과목 현황과 제출용 원본 맵
+ */
+export async function fetchAcademicOverview(
+  client: EcampusClient,
+  student: WebStudent
+): Promise<{ academicOverview: AcademicOverview; rawAssignments: Map<string, EcampusClassroomItem> }> {
+  const now = new Date();
+  const list = await client.getCourseList();
+  const courses = await mapLimit(list, FETCH_LIMIT, async (c) => {
+    // 과제와 차시는 서로 의존하지 않으므로 한 과목 안에서도 동시에 조회한다.
+    const [assignmentsResult, lessonsResult] = await Promise.allSettled([
+      client.getAssignmentList({
+        crsCreCd: c.crsCreCd,
+        userNo: student.userNo,
+        userName: student.studentName || "",
+        listScale: LIST_SCALE
+      }),
+      client.getElearningLessonList({ crsCreCd: c.crsCreCd })
+    ]);
+    const assignments = assignmentsResult.status === "fulfilled" ? assignmentsResult.value : [];
+    const lessons = lessonsResult.status === "fulfilled" ? lessonsResult.value : [];
+    /* 응답 타입은 엔진에서 제공하지만, 일부 학교 응답에는 확장 필드가 추가된다. */
+    const lessonRows: Array<{
+      lessonCntsId?: string;
+      scheduleTitle?: string;
+      title?: string;
+      period?: string;
+      attendanceStatus?: string;
+      durationSeconds?: number;
+      progressPercent?: number | null;
+    }> = lessons;
+    const course: AcademicOverviewCourse & { _rawAssignments: EcampusClassroomItem[] } = {
+      courseTitle: c.title || (c as any).courseTitle || "",
+      crsCreCd: c.crsCreCd,
+      category: c.crsTypeCd === "CO" ? "extracurricular" : "curricular",
+      label: c.label || "",
+      professor: String(c.professor || "").trim(),
+      assignments: assignments.map((a) =>
+        markAssignment(
+          {
+            id: a.id,
+            title: a.title || "",
+            period: a.period || "",
+            status: a.status || "",
+            crsCreCd: c.crsCreCd,
+            hasAttachment: Boolean(a.hasAttachment)
+          },
+          now
+        )
+      ),
+      elearning: lessonRows.map((l) =>
+        markLesson(
+          {
+            id: String(l.lessonCntsId || ""),
+            week: l.scheduleTitle || "",
+            title: l.title || "",
+            period: l.period || "",
+            attendanceStatus: String(l.attendanceStatus || "")
+              .replace(/강의보기/g, "")
+              .replace(/\s*[xX×]\s*$/g, "")
+              .replace(/\s{2,}/g, " ")
+              .trim(),
+            durationSeconds: Number((l as { durationSeconds?: number }).durationSeconds) || undefined,
+            progressPercent: (l as { progressPercent?: number | null }).progressPercent ?? null,
+            lessonCntsId: String(l.lessonCntsId || ""),
+            crsCreCd: c.crsCreCd
+          },
+          now
+        )
+      ),
+      _rawAssignments: assignments
+    };
+    return course;
+  });
+
+  const rawAssignments = new Map<string, EcampusClassroomItem>();
+  for (const c of courses) {
+    for (const raw of c._rawAssignments || []) {
+      rawAssignments.set(`${c.crsCreCd}::${raw.id}`, raw);
+    }
+    delete (c as { _rawAssignments?: EcampusClassroomItem[] })._rawAssignments;
+  }
+
+  const academicOverview: AcademicOverview = {
+    savedAt: new Date().toISOString(),
+    semester: semesterFromCode(courses[0]?.crsCreCd),
+    courses,
+    summary: buildSummary(courses)
+  };
+  return { academicOverview, rawAssignments };
+}
+
+/**
+ * 과제 상세 본문·첨부·제출 폼을 읽는다.
+ * @param client - e-campus 클라이언트
+ * @param raw - 목록 원본 과제
+ * @param ids - 과제 식별자
+ */
+export async function fetchAssignmentDetail(
+  client: EcampusClient,
+  raw: EcampusClassroomItem | undefined,
+  ids: { id?: string; crsCreCd?: string } = {}
+): Promise<AssignmentDetail> {
+  const item = assignmentItem(raw, ids, client.baseUrl);
+  const detail = await client.getAssignmentDetail(item);
+  const form = detail.submitForm;
+  /**
+   * 상세 응답의 첨부를 공통 파일 행으로 바꾸고 기본 제목을 보완한다.
+   * @param a - 학교가 반환한 첨부 파일
+   * @returns 제목과 다운로드 URL을 가진 파일 행
+   */
+  const mapFile = (a: { title?: string; url: string }) => ({
+    title: a.title && a.title !== "attachment" ? a.title : "첨부파일",
+    url: a.url
+  });
+  return {
+    text: detail.text || assignmentDetailText(detail.html),
+    attachments: (detail.attachments || []).map(mapFile),
+    submittedAttachments: (detail.submittedAttachments || []).map(mapFile),
+    canSubmit: Boolean(item.id),
+    sendType: detail.sendType || "F",
+    formAction: form?.action || "",
+    asmntSendCd: detail.submitForm?.fields?.asmntSendCd || ""
+  };
+}
+
+/**
+ * 이미 낸 과제 파일만 우측 제출 칸에서 읽는다.
+ * @param client - e-campus 클라이언트
+ * @param raw - 목록 원본 과제
+ * @param ids - 과제 식별자
+ */
+export async function fetchAssignmentSubmittedFiles(
+  client: EcampusClient,
+  raw: EcampusClassroomItem | undefined,
+  ids: { id?: string; crsCreCd?: string } = {}
+): Promise<AttachmentRow[]> {
+  const item = assignmentItem(raw, ids, client.baseUrl);
+  const files = await client.getAssignmentSubmittedFiles(item);
+  return (files || []).map((a) => ({
+    title: a.title && a.title !== "attachment" ? a.title : "첨부파일",
+    url: a.url
+  }));
+}
+
+/**
+ * 제출한 과제 행에 제출 파일 목록을 붙인다. 한 번 조회한 행은 과목 현황에 남겨 둔다.
+ * @param client - e-campus 클라이언트
+ * @param rawAssignments - 과제 원본 맵
+ * @param rows - 목록 API 행
+ * @param academicOverview - 세션에 캐시된 과목 현황
+ */
+export async function attachSubmittedFilesToRows(
+  client: EcampusClient,
+  rawAssignments: Map<string, EcampusClassroomItem>,
+  rows: AssignmentListRow[],
+  academicOverview?: AcademicOverview | null
+): Promise<void> {
+  const pending = rows.filter((r) => !r.submittedFilesLoaded);
+  if (!pending.length) return;
+  // 각 행을 갱신할 때마다 courses 전체를 순회하지 않도록 한 번만 인덱싱한다.
+  const assignmentsByKey = new Map<string, AcademicOverview["courses"][number]["assignments"][number]>();
+  for (const course of academicOverview?.courses || []) {
+    for (const assignment of course.assignments) {
+      assignmentsByKey.set(`${course.crsCreCd}::${assignment.id}`, assignment);
+    }
+  }
+  await mapLimit(pending, FETCH_LIMIT, async (row) => {
+    const raw = rawAssignments.get(`${row.crsCreCd}::${row.id}`);
+    try {
+      const files = await fetchAssignmentSubmittedFiles(client, raw, { id: row.id, crsCreCd: row.crsCreCd });
+      row.submittedAttachments = files;
+      row.hasSubmittedFile = files.length > 0;
+      try {
+        const detail = await fetchAssignmentDetail(client, raw, { id: row.id, crsCreCd: row.crsCreCd });
+        if (!files.length && detail.submittedAttachments.length) {
+          row.submittedAttachments = detail.submittedAttachments;
+          row.hasSubmittedFile = true;
+        }
+      } catch {}
+    } catch {
+      row.submittedAttachments = [];
+      row.hasSubmittedFile = false;
+    }
+    row.submittedFilesLoaded = true;
+    refreshAssignmentDue(row);
+    const assignment = assignmentsByKey.get(`${row.crsCreCd}::${row.id}`);
+    if (!assignment) return;
+    assignment.submittedAttachments = row.submittedAttachments;
+    assignment.hasSubmittedFile = row.hasSubmittedFile;
+    assignment.submittedFilesLoaded = true;
+    assignment.status = row.status;
+    assignment.dueNow = row.dueNow;
+  });
+  if (academicOverview) academicOverview.summary = buildSummary(academicOverview.courses);
+}
+
+/**
+ * 상세 화면 폼으로 과제를 제출한다. 수강신청이 아니다.
+ * 엔진에서 승인한 e-campus HTTPS 출처의 action만 전송한다.
+ * @param client - e-campus 클라이언트
+ * @param raw - 목록 원본 과제
+ * @param payload - 제출 파일
+ */
+export async function submitAssignment(
+  client: EcampusClient,
+  raw: EcampusClassroomItem | undefined,
+  payload: AssignmentSubmitPayload
+): Promise<{ ok: true; status: number; hasSubmittedFile: boolean }> {
+  const item = assignmentItem(raw, payload, client.baseUrl);
+  return client.submitAssignment(item, {
+    file: payload.file,
+    asmntSendCd: payload.asmntSendCd,
+    deletedEncFileSns: payload.deletedEncFileSns,
+    deletedFileUrls: payload.deletedFileUrls,
+    keepFileUrls: payload.keepFileUrls,
+    renamedFiles: payload.renamedFiles
+  });
+}
+
+/**
+ * 전 과목 강의자료실 목록을 모은다.
+ * @param client - e-campus 클라이언트
+ */
+export async function fetchMaterials(
+  client: EcampusClient
+): Promise<{ rows: MaterialRow[]; rawMaterials: Map<string, EcampusClassroomItem> }> {
+  const list = await client.getCourseList();
+  const rawMaterials = new Map<string, EcampusClassroomItem>();
+  const rows: MaterialRow[] = [];
+  await mapLimit(list, FETCH_LIMIT, async (c) => {
+    let items: EcampusClassroomItem[] = [];
+    try {
+      items = await client.getMaterialList({ crsCreCd: c.crsCreCd, listScale: 100 });
+    } catch {
+      items = [];
+    }
+    for (const it of items) {
+      rawMaterials.set(`${c.crsCreCd}::${it.id}`, it);
+      rows.push({
+        id: it.id,
+        title: it.title || "",
+        date: it.date || "",
+        hasAttachment: Boolean(it.hasAttachment),
+        crsCreCd: c.crsCreCd,
+        courseTitle: c.title
+      });
+    }
+  });
+  return { rows, rawMaterials };
+}
+
+/**
+ * 전 과목 공지사항 목록을 모은다. prompt:client 의 getNoticeList 와 같다.
+ * @param client - e-campus 클라이언트
+ */
+export async function fetchNotices(
+  client: EcampusClient
+): Promise<{ rows: NoticeRow[]; rawNotices: Map<string, EcampusClassroomItem> }> {
+  const list = await client.getCourseList();
+  const rawNotices = new Map<string, EcampusClassroomItem>();
+  const rows: NoticeRow[] = [];
+  await mapLimit(list, FETCH_LIMIT, async (c) => {
+    let items: EcampusClassroomItem[] = [];
+    try {
+      items = await client.getNoticeList({ crsCreCd: c.crsCreCd, listScale: LIST_SCALE });
+    } catch {
+      items = [];
+    }
+    for (const it of items) {
+      rawNotices.set(`${c.crsCreCd}::${it.id}`, it);
+      rows.push({
+        id: it.id,
+        title: it.title || "",
+        date: it.date || "",
+        hasAttachment: Boolean(it.hasAttachment),
+        crsCreCd: c.crsCreCd,
+        courseTitle: c.title
+      });
+    }
+  });
+  rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return { rows, rawNotices };
+}
+
+/**
+ * 공지 한 건의 본문·첨부를 가져온다.
+ * 목록 raw 요청이 있으면 그대로 재전송하고, 없으면 자료 첨부와 같은 경로를 쓴다.
+ * @param client - e-campus 클라이언트
+ * @param raw - 목록 원본 공지
+ */
+export async function fetchNoticeDetail(
+  client: EcampusClient,
+  raw: EcampusClassroomItem | undefined
+): Promise<NoticeDetail> {
+  if (!raw) throw new UserFacingError("공지를 고르세요.");
+  let html = "";
+  if (raw.request?.url) {
+    const requestUrl = assertSchoolUrl(raw.request.url, client.baseUrl);
+    const response = await client.http.post(
+      requestUrl.pathname + requestUrl.search,
+      new URLSearchParams(raw.request.body || {}),
+      {
+        headers: {
+          Accept: "text/html, */*; q=0.01",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        }
+      }
+    );
+    html = typeof response.data === "string" ? response.data : "";
+  }
+  const attachments = html
+    ? parseEcampusClassroomAttachmentsHtml(html, { baseUrl: client.baseUrl }) || []
+    : await client.getMaterialAttachments(raw);
+  return {
+    text: html ? noticeDetailText(html) : "",
+    attachments: (attachments || []).map((a: { title?: string; url: string }) => ({
+      title: a.title || "첨부파일",
+      url: a.url
+    }))
+  };
+}
+
+/**
+ * 강의자료 한 건의 첨부 목록을 가져온다.
+ * @param client - e-campus 클라이언트
+ * @param raw - 자료 원본
+ */
+export async function fetchMaterialAttachments(
+  client: EcampusClient,
+  raw: EcampusClassroomItem | undefined
+): Promise<AttachmentRow[]> {
+  if (!raw) throw new UserFacingError("자료를 고르세요.");
+  const list = await client.getMaterialAttachments(raw);
+  return (list || []).map((a) => ({ title: a.title || "첨부파일", url: a.url }));
+}
+
+/**
+ * e-campus 첨부 파일을 받아 버퍼로 돌려준다.
+ * 엔진에서 승인한 e-campus HTTPS 출처만 허용한다.
+ * @param client - e-campus 클라이언트
+ * @param url - 첨부 절대·상대 URL
+ */
+export async function downloadCampusFile(
+  client: EcampusClient,
+  url: string,
+  onProgress?: (loaded: number, total: number) => void
+): Promise<{ data: Buffer; contentType: string; disposition: string }> {
+  return client.downloadClassroomFile(url, onProgress);
+}
+
+/**
+ * e-campus 첨부파일의 용량(Content-Length)을 조회한다.
+ * @param client - e-campus 클라이언트
+ * @param url - 첨부파일 URL
+ */
+export async function fetchFileSize(
+  client: EcampusClient,
+  url: string
+): Promise<number> {
+  return client.getClassroomFileSize(url);
+}
